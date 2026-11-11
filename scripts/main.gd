@@ -22,11 +22,19 @@ func _ready() -> void:
 func _build_environment() -> void:
 	var world := WorldEnvironment.new()
 	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.012, 0.016, 0.026)
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.48, 0.50, 0.58)
-	env.ambient_light_energy = 0.65
+	env.background_mode = Environment.BG_SKY
+	var sky := Sky.new()
+	var sky_material := ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = Color(0.018, 0.026, 0.05)
+	sky_material.sky_horizon_color = Color(0.18, 0.14, 0.09)
+	sky_material.ground_bottom_color = Color(0.008, 0.01, 0.016)
+	sky_material.ground_horizon_color = Color(0.09, 0.075, 0.06)
+	sky.sky_material = sky_material
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_energy = 0.72
+	env.reflected_light_source = Environment.REFLECTION_SOURCE_BG
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	world.environment = env
 	add_child(world)
 
@@ -78,6 +86,8 @@ func _add_piece(x: int, z: int, kind: String, is_white: bool) -> void:
 	var root := Node3D.new()
 	root.name = "%s_%d_%d" % [kind, x, z]
 	root.position = _square_position(x, z)
+	if is_white:
+		root.rotation.y = PI
 	root.set_meta("square", Vector2i(x, z))
 	root.set_meta("kind", kind)
 	root.set_meta("white", is_white)
@@ -106,7 +116,7 @@ func _apply_dark_metal(node: Node) -> void:
 func _build_camera() -> void:
 	camera = Camera3D.new()
 	# Long lens distance keeps the full square board visible on a portrait phone screen.
-	camera.position = Vector3(0.0, 15.5, 12.5)
+	camera.position = Vector3(0.0, 16.4, 13.2)
 	camera.look_at(Vector3.ZERO, Vector3.UP)
 	camera.fov = 42.0
 	camera.current = true
