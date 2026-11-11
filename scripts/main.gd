@@ -1,203 +1,178 @@
 extends Node3D
 
-const SIZE := 8
-const CELL := 1.0
+const BOARD_SIZE := 8
+const CELL_SIZE := 1.0
+const BOARD_SURFACE_Y := 0.075
 
 var camera: Camera3D
 var pieces: Dictionary = {}
 var selected_square := Vector2i(-1, -1)
 var selected_piece: Node3D
 
+var dark_piece_material: StandardMaterial3D
+
 func _ready() -> void:
 	_build_environment()
-	_build_board()
-	_build_pieces()
+	_build_board_model()
+	_build_piece_materials()
+	_build_starting_position()
 	_build_camera()
-	_build_lights()
-
-func _mat(color: Color, metallic: float, roughness: float) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.metallic = metallic
-	material.roughness = roughness
-	return material
+	_build_lighting()
 
 func _build_environment() -> void:
 	var world := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.018, 0.022, 0.035)
+	env.background_color = Color(0.012, 0.016, 0.026)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.48, 0.50, 0.58)
-	env.ambient_light_energy = 0.6
+	env.ambient_light_energy = 0.65
 	world.environment = env
 	add_child(world)
 
-func _build_board() -> void:
-	var plinth := MeshInstance3D.new()
-	var plinth_mesh := BoxMesh.new()
-	plinth_mesh.size = Vector3(8.45, 0.3, 8.45)
-	plinth.mesh = plinth_mesh
-	plinth.position.y = -0.19
-	plinth.material_override = _mat(Color(0.12, 0.075, 0.045), 0.55, 0.28)
-	add_child(plinth)
-	for z in range(SIZE):
-		for x in range(SIZE):
-			var tile := MeshInstance3D.new()
-			var mesh := BoxMesh.new()
-			mesh.size = Vector3(CELL, 0.08, CELL)
-			tile.mesh = mesh
-			tile.position = _pos(x, z) + Vector3(0, -0.025, 0)
-			tile.material_override = _mat(Color(0.72, 0.62, 0.44) if (x + z) % 2 == 0 else Color(0.065, 0.078, 0.105), 0.25, 0.34)
+func _build_board_model() -> void:
+	var board_scene := load("res://assets/models/board.glb") as PackedScene
+	if board_scene != null:
+		add_child(board_scene.instantiate())
+	else:
+		push_warning("board.glb is not imported yet. Run the Generate ChessVerse 3D models workflow.")
+
+	# Invisible touch targets are kept separate from the visual GLB board.
+	for z in range(BOARD_SIZE):
+		for x in range(BOARD_SIZE):
 			var body := StaticBody3D.new()
+			body.name = "Square_%d_%d" % [x, z]
+			body.position = Vector3((x - 3.5) * CELL_SIZE, 0.025, (z - 3.5) * CELL_SIZE)
 			var collision := CollisionShape3D.new()
 			var shape := BoxShape3D.new()
-			shape.size = Vector3(CELL, 0.1, CELL)
+			shape.size = Vector3(CELL_SIZE, 0.09, CELL_SIZE)
 			collision.shape = shape
 			body.add_child(collision)
 			body.set_meta("square", Vector2i(x, z))
-			tile.add_child(body)
-			add_child(tile)
+			add_child(body)
 
-func _build_pieces() -> void:
-	var rank := ["rook", "knight", "bishop", "queen", "king", "bishop", "knight", "rook"]
-	for x in range(SIZE):
-		_add_piece(x, 0, rank[x], false)
+func _build_piece_materials() -> void:
+	dark_piece_material = StandardMaterial3D.new()
+	dark_piece_material.resource_name = "Black Chrome"
+	dark_piece_material.albedo_color = Color(0.105, 0.135, 0.18)
+	dark_piece_material.metallic = 0.98
+	dark_piece_material.roughness = 0.16
+	dark_piece_material.clearcoat_enabled = true
+	dark_piece_material.clearcoat = 0.7
+
+func _build_starting_position() -> void:
+	var back_rank: Array[String] = ["rook", "knight", "bishop", "queen", "king", "bishop", "knight", "rook"]
+	for x in range(BOARD_SIZE):
+		_add_piece(x, 0, back_rank[x], false)
 		_add_piece(x, 1, "pawn", false)
 		_add_piece(x, 6, "pawn", true)
-		_add_piece(x, 7, rank[x], true)
+		_add_piece(x, 7, back_rank[x], true)
 
-func _add_piece(x: int, z: int, kind: String, white: bool) -> void:
+func _add_piece(x: int, z: int, kind: String, is_white: bool) -> void:
+	var model_path := "res://assets/models/pieces/%s.glb" % kind
+	var packed_piece := load(model_path) as PackedScene
+	if packed_piece == null:
+		push_warning("Missing 3D model: " + model_path)
+		return
+
 	var root := Node3D.new()
 	root.name = "%s_%d_%d" % [kind, x, z]
-	root.position = _pos(x, z)
+	root.position = _square_position(x, z)
 	root.set_meta("square", Vector2i(x, z))
 	root.set_meta("kind", kind)
-	root.set_meta("white", white)
+	root.set_meta("white", is_white)
 	add_child(root)
-	var metal := _mat(Color(0.9, 0.77, 0.48) if white else Color(0.22, 0.29, 0.42), 0.86, 0.2)
-	var base := _mat(Color(0.055, 0.06, 0.075), 0.35, 0.35)
-	_cylinder(root, 0.28, 0.11, 0.055, base)
-	_cylinder(root, 0.22, 0.12, 0.17, metal)
-	match kind:
-		"pawn":
-			_cylinder(root, 0.12, 0.3, 0.38, metal)
-			_sphere(root, 0.13, 0.6, metal)
-		"rook":
-			_cylinder(root, 0.17, 0.43, 0.43, metal)
-			_cylinder(root, 0.22, 0.1, 0.7, metal)
-		"knight":
-			_cylinder(root, 0.15, 0.35, 0.42, metal)
-			_box(root, Vector3(0.2, 0.34, 0.18), Vector3(0, 0.78, 0), metal)
-			_sphere(root, 0.1, 0.98, metal)
-		"bishop":
-			_cylinder(root, 0.15, 0.48, 0.45, metal)
-			_sphere(root, 0.13, 0.78, metal)
-			_sphere(root, 0.055, 0.94, metal)
-		"queen":
-			_cylinder(root, 0.17, 0.58, 0.5, metal)
-			_sphere(root, 0.18, 0.88, metal)
-			for i in range(5):
-				var angle := TAU * float(i) / 5.0
-				_sphere_at(root, 0.05, Vector3(cos(angle) * 0.15, 1.05, sin(angle) * 0.15), metal)
-		"king":
-			_cylinder(root, 0.18, 0.65, 0.53, metal)
-			_sphere(root, 0.16, 0.96, metal)
-			_box(root, Vector3(0.07, 0.28, 0.07), Vector3(0, 1.23, 0), metal)
-			_box(root, Vector3(0.22, 0.07, 0.07), Vector3(0, 1.28, 0), metal)
+
+	var model := packed_piece.instantiate() as Node3D
+	if model == null:
+		root.queue_free()
+		return
+	root.add_child(model)
+	if not is_white:
+		_apply_dark_metal(model)
+
 	pieces[Vector2i(x, z)] = root
 
-func _cylinder(parent: Node3D, radius: float, height: float, y: float, material: Material) -> void:
-	var node := MeshInstance3D.new()
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = radius * 0.88
-	mesh.bottom_radius = radius
-	mesh.height = height
-	node.mesh = mesh
-	node.position.y = y
-	node.material_override = material
-	parent.add_child(node)
-
-func _sphere(parent: Node3D, radius: float, y: float, material: Material) -> void:
-	_sphere_at(parent, radius, Vector3(0, y, 0), material)
-
-func _sphere_at(parent: Node3D, radius: float, position: Vector3, material: Material) -> void:
-	var node := MeshInstance3D.new()
-	var mesh := SphereMesh.new()
-	mesh.radius = radius
-	mesh.height = radius * 2.0
-	node.mesh = mesh
-	node.position = position
-	node.material_override = material
-	parent.add_child(node)
-
-func _box(parent: Node3D, size: Vector3, position: Vector3, material: Material) -> void:
-	var node := MeshInstance3D.new()
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	node.mesh = mesh
-	node.position = position
-	node.material_override = material
-	parent.add_child(node)
+func _apply_dark_metal(node: Node) -> void:
+	if node is MeshInstance3D and node.mesh != null:
+		var mesh_instance := node as MeshInstance3D
+		for surface in range(mesh_instance.mesh.get_surface_count()):
+			var surface_material := mesh_instance.mesh.surface_get_material(surface)
+			if surface_material != null and surface_material.resource_name.contains("Polished Platinum"):
+				mesh_instance.set_surface_override_material(surface, dark_piece_material)
+	for child in node.get_children():
+		_apply_dark_metal(child)
 
 func _build_camera() -> void:
 	camera = Camera3D.new()
-	camera.position = Vector3(0, 10.8, 10.8)
+	# Long lens distance keeps the full square board visible on a portrait phone screen.
+	camera.position = Vector3(0.0, 15.5, 12.5)
 	camera.look_at(Vector3.ZERO, Vector3.UP)
-	camera.fov = 42
+	camera.fov = 42.0
 	camera.current = true
 	add_child(camera)
 
-func _build_lights() -> void:
+func _build_lighting() -> void:
 	var key := DirectionalLight3D.new()
 	key.rotation_degrees = Vector3(-48, -32, 0)
-	key.light_energy = 1.6
+	key.light_energy = 1.8
 	key.shadow_enabled = true
 	add_child(key)
+
 	var fill := OmniLight3D.new()
 	fill.position = Vector3(-3.5, 4.0, -2.0)
-	fill.light_energy = 0.65
-	fill.omni_range = 12
+	fill.light_energy = 0.7
+	fill.omni_range = 13.0
 	add_child(fill)
 
-func _pos(x: int, z: int) -> Vector3:
-	return Vector3((x - 3.5) * CELL, 0, (z - 3.5) * CELL)
+	var rim := OmniLight3D.new()
+	rim.position = Vector3(4.5, 3.2, 3.5)
+	rim.light_color = Color(1.0, 0.72, 0.38)
+	rim.light_energy = 1.1
+	rim.omni_range = 10.0
+	add_child(rim)
+
+func _square_position(x: int, z: int) -> Vector3:
+	return Vector3((x - 3.5) * CELL_SIZE, BOARD_SURFACE_Y, (z - 3.5) * CELL_SIZE)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch and event.pressed:
-		_tap(event.position)
+		_handle_tap(event.position)
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_tap(event.position)
+		_handle_tap(event.position)
 
-func _tap(point: Vector2) -> void:
-	var origin := camera.project_ray_origin(point)
-	var direction := camera.project_ray_normal(point)
-	var query := PhysicsRayQueryParameters3D.create(origin, origin + direction * 100.0)
+func _handle_tap(screen_position: Vector2) -> void:
+	var ray_origin := camera.project_ray_origin(screen_position)
+	var ray_direction := camera.project_ray_normal(screen_position)
+	var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_direction * 100.0)
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
 		return
-	var collider: Object = hit.collider
-	if not collider.has_meta("square"):
-		return
-	_choose_square(collider.get_meta("square"))
 
-func _choose_square(square: Vector2i) -> void:
+	var collider: Object = hit.get("collider")
+	if collider == null or not collider.has_meta("square"):
+		return
+	_select_or_move(collider.get_meta("square"))
+
+func _select_or_move(square: Vector2i) -> void:
 	if selected_piece == null:
 		if pieces.has(square):
 			selected_square = square
 			selected_piece = pieces[square]
-			selected_piece.scale = Vector3.ONE * 1.12
+			selected_piece.scale = Vector3.ONE * 1.08
 		return
+
 	if square == selected_square:
 		selected_piece.scale = Vector3.ONE
 		selected_piece = null
 		return
-	# Prototype interaction only: legal move validation is a separate milestone.
+
+	# Temporary visual prototype: move legality will be enforced by chess_rules.gd.
 	if pieces.has(square) and pieces[square] != selected_piece:
 		pieces[square].queue_free()
 	pieces.erase(selected_square)
 	pieces[square] = selected_piece
-	selected_piece.position = _pos(square.x, square.y)
+	selected_piece.position = _square_position(square.x, square.y)
 	selected_piece.scale = Vector3.ONE
 	selected_piece.set_meta("square", square)
 	selected_piece = null
