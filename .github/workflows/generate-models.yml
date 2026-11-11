@@ -1,0 +1,38 @@
+name: Generate ChessVerse 3D models
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/build_models.py'
+      - '.github/workflows/generate-models.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install model generator dependencies
+        run: python -m pip install --upgrade pip numpy 'trimesh>=4.4,<5'
+      - name: Generate GLB assets
+        run: python tools/build_models.py --output assets/models
+      - name: Commit generated models
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/models/*.glb assets/models/pieces/*.glb
+          if git diff --cached --quiet; then
+            echo 'No generated model changes.'
+          else
+            git commit -m 'Generate metallic chess GLB models'
+            git push
+          fi
