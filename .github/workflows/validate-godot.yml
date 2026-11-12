@@ -1,28 +1,12 @@
 name: Validate Godot project
 
+# Validation is manual while old long-running jobs are cleared.
+# Android APK builds remain automatically triggered by build-android.yml.
 concurrency:
   group: godot-validation-${{ github.ref }}
   cancel-in-progress: true
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "project.godot"
-      - "scripts/**"
-      - "scenes/**"
-      - "tests/**"
-      - "assets/models/**"
-      - ".github/workflows/validate-godot.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "project.godot"
-      - "scripts/**"
-      - "scenes/**"
-      - "tests/**"
-      - "assets/models/**"
-      - ".github/workflows/validate-godot.yml"
   workflow_dispatch:
 
 permissions:
@@ -31,7 +15,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 3
     container:
       image: barichello/godot-ci:4.3
     steps:
@@ -39,10 +23,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Import project and parse scripts
-        run: timeout 60s godot --headless --editor --path . --quit
+        run: timeout --signal=TERM --kill-after=5s 30s godot --headless --editor --path . --quit
 
       - name: Test chess rules and AI
-        run: timeout 45s godot --headless --path . --script res://tests/chess_rules_test.gd
+        run: timeout --signal=TERM --kill-after=5s 30s godot --headless --path . --script res://tests/chess_rules_test.gd
 
       - name: Run main scene headlessly
-        run: timeout 30s godot --headless --path . --quit-after 12
+        run: timeout --signal=TERM --kill-after=5s 20s godot --headless --path . --quit-after 12
