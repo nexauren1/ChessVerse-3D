@@ -287,7 +287,7 @@ func set_history(moves: Array[Dictionary]) -> void:
 			var black_move: Dictionary = moves[i + 1]
 			line += "    " + _square_name(black_move.from) + "–" + _square_name(black_move.to)
 		lines.append(line)
-	history_text = "\n".join(lines)
+	history_text = "\n".join(PackedStringArray(lines))
 
 func _square_name(square: Vector2i) -> String:
 	var files := "abcdefgh"
