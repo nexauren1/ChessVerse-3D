@@ -13,6 +13,9 @@ var white_to_move := true
 var rules: ChessRules
 var game_over := false
 var versus_ai := true
+var white_clock := 900.0
+var black_clock := 900.0
+var clock_running := true
 var white_piece_material: StandardMaterial3D
 var silver_piece_material: StandardMaterial3D
 var hud
@@ -29,6 +32,21 @@ func _ready() -> void:
 	_build_lighting()
 	_build_hud()
 
+func _process(delta: float) -> void:
+	if game_over or not clock_running:
+		return
+	if white_to_move:
+		white_clock = maxf(0.0, white_clock - delta)
+	else:
+		black_clock = maxf(0.0, black_clock - delta)
+	if is_instance_valid(hud):
+		hud.set_clocks(white_clock, black_clock)
+	if white_clock <= 0.0 or black_clock <= 0.0:
+		game_over = true
+		clock_running = false
+		var white_won := black_clock <= 0.0
+		hud.show_result("Tempo esgotado", "Vitória das Brancas." if white_won else "Vitória das Pretas.")
+
 func _build_hud() -> void:
 	hud = HUD_SCRIPT.new()
 	add_child(hud)
@@ -36,6 +54,7 @@ func _build_hud() -> void:
 	hud.resign_requested.connect(_resign_game)
 	hud.mode_changed.connect(_on_mode_changed)
 	hud.set_turn(true)
+	hud.set_clocks(white_clock, black_clock)
 
 func _build_environment() -> void:
 	var world := WorldEnvironment.new()
@@ -522,6 +541,7 @@ func _update_game_status() -> void:
 	match state:
 		"checkmate":
 			game_over = true
+			clock_running = false
 			hud.show_result("Xeque-mate","Vitória das Brancas." if not rules.white_to_move else "Vitória das Pretas.")
 		"stalemate":
 			game_over = true
@@ -536,6 +556,8 @@ func _update_game_status() -> void:
 
 func _restart_game() -> void:
 	game_over = false
+	white_clock = 900.0
+	black_clock = 900.0
 	rules.reset()
 	white_to_move = true
 	hud.set_history(rules.move_history)
@@ -548,10 +570,12 @@ func _restart_game() -> void:
 	white_to_move = true
 	_build_starting_position()
 	hud.set_turn(true)
+	hud.set_clocks(white_clock, black_clock)
 	hud.set_status("Nova partida iniciada")
 
 func _resign_game() -> void:
 	game_over = true
+	clock_running = false
 	selected_piece = null
 	selected_square = Vector2i(-1, -1)
 	hud.show_result("Partida terminada", "O jogador desistiu. Inicia uma nova partida para voltar a jogar.")
