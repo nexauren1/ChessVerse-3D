@@ -19,5 +19,8 @@ jobs:
       - name: Import project and parse scripts
         run: godot --headless --editor --path . --quit
 
+      - name: Test chess rules and AI
+        run: godot --headless --path . --script res://tests/chess_rules_test.gd
+
       - name: Run main scene headlessly
         run: godot --headless --path . --quit-after 12
