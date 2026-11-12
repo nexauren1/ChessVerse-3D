@@ -1,12 +1,19 @@
 name: Build Android APK
 
 concurrency:
-  group: android-build
+  group: android-build-${{ github.ref }}
   cancel-in-progress: true
 
 on:
   push:
     branches: [main]
+    paths:
+      - "project.godot"
+      - "export_presets.cfg"
+      - "scripts/**"
+      - "scenes/**"
+      - "assets/models/**"
+      - ".github/workflows/build-android.yml"
   workflow_dispatch:
 
 permissions:
@@ -15,6 +22,7 @@ permissions:
 jobs:
   android:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     container:
       image: barichello/godot-ci:4.3
     steps:
@@ -29,9 +37,6 @@ jobs:
           cp /tmp/godot-templates/templates/* "$HOME/.local/share/godot/export_templates/4.3.stable/"
 
       - name: Configure Android SDK, Java and debug signing
-        env:
-          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
-          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           JAVA_PATH="${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}"
           SDK_PATH="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/lib/android-sdk}}"
@@ -52,16 +57,12 @@ jobs:
           test -x "$SDK_PATH/platform-tools/adb"
 
       - name: Import project assets
-        run: godot --headless --editor --path . --quit
+        run: timeout 90s godot --headless --editor --path . --quit
 
       - name: Export debug APK
-        env:
-          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: /github/home/.android/debug.keystore
-          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
-          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p build
-          godot --headless --path . --export-debug "Android" build/ChessVerse3D.apk
+          timeout 8m godot --headless --path . --export-debug "Android" build/ChessVerse3D.apk
           test -s build/ChessVerse3D.apk
 
       - name: Upload APK
