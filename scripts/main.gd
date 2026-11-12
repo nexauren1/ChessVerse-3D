@@ -21,6 +21,7 @@ var time_control_seconds := 900.0
 var white_piece_material: StandardMaterial3D
 var silver_piece_material: StandardMaterial3D
 var hud
+var move_markers: Array[MeshInstance3D] = []
 
 func _ready() -> void:
 	rules = ChessRules.new()
@@ -432,11 +433,13 @@ func _select_or_move(square: Vector2i) -> void:
 		_try_select_piece(square)
 		return
 	if square == selected_square:
+		_clear_move_markers()
 		selected_piece.scale = Vector3.ONE
 		selected_piece = null
 		selected_square = Vector2i(-1,-1)
 		return
 	if pieces.has(square) and bool(pieces[square].get_meta("white")) == white_to_move:
+		_clear_move_markers()
 		selected_piece.scale = Vector3.ONE
 		selected_piece = null
 		selected_square = Vector2i(-1,-1)
@@ -459,6 +462,7 @@ func _select_or_move(square: Vector2i) -> void:
 	var promotion: String = chosen.get("promotion","")
 	if not rules.play_move(from,square):
 		return
+	_clear_move_markers()
 	_sync_visual_move(from,square,is_en_passant,castle,promotion)
 	hud.set_history(rules.move_history)
 	selected_piece = null
@@ -480,6 +484,7 @@ func _play_ai_turn() -> void:
 	if ai_move.is_empty():
 		_update_game_status()
 		return
+	_clear_move_markers()
 	_sync_visual_move(ai_move.from,ai_move.to,bool(ai_move.get("en_passant",false)),String(ai_move.get("castle","")),String(ai_move.get("promotion","")))
 	hud.set_history(rules.move_history)
 	white_to_move = rules.white_to_move
@@ -502,6 +507,7 @@ func _try_select_piece(square: Vector2i) -> void:
 	selected_square = square
 	selected_piece = candidate
 	selected_piece.scale = Vector3.ONE * 1.08
+	_show_legal_moves(square)
 	hud.set_status("Peça seleccionada")
 
 func _sync_visual_move(from: Vector2i, to: Vector2i, is_en_passant: bool = false, castle: String = "", promotion: String = "") -> void:
@@ -572,6 +578,7 @@ func _restart_game() -> void:
 		if is_instance_valid(piece):
 			piece.queue_free()
 	pieces.clear()
+	_clear_move_markers()
 	selected_piece = null
 	selected_square = Vector2i(-1, -1)
 	white_to_move = true
@@ -601,3 +608,29 @@ func _on_time_control_changed(seconds: int) -> void:
 	if is_instance_valid(hud):
 		hud.set_clocks(white_clock, black_clock)
 	hud.set_status("Tempo actualizado. Reinicia para iniciar com o novo relógio.")
+
+func _show_legal_moves(from_square: Vector2i) -> void:
+	var marker_material := StandardMaterial3D.new()
+	marker_material.albedo_color = Color(0.95, 0.68, 0.22, 0.88)
+	marker_material.emission_enabled = true
+	marker_material.emission = Color(0.9, 0.48, 0.08)
+	marker_material.emission_energy_multiplier = 0.8
+	marker_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	for move in rules.legal_moves_from(from_square):
+		var marker := MeshInstance3D.new()
+		var ring := TorusMesh.new()
+		ring.inner_radius = 0.16
+		ring.outer_radius = 0.21
+		ring.rings = 6
+		ring.ring_segments = 20
+		marker.mesh = ring
+		marker.position = _square_position(move.to.x, move.to.y) + Vector3(0, 0.035, 0)
+		marker.material_override = marker_material
+		add_child(marker)
+		move_markers.append(marker)
+
+func _clear_move_markers() -> void:
+	for marker in move_markers:
+		if is_instance_valid(marker):
+			marker.queue_free()
+	move_markers.clear()
