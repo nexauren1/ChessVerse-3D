@@ -413,7 +413,7 @@ func _select_or_move(square: Vector2i) -> void:
 		selected_piece = null
 		selected_square = Vector2i(-1,-1)
 		return
-	if pieces.has(square) and bool(pieces[square].get_meta("white")):
+	if pieces.has(square) and bool(pieces[square].get_meta("white")) == white_to_move:
 		selected_piece.scale = Vector3.ONE
 		selected_piece = null
 		selected_square = Vector2i(-1,-1)
@@ -431,7 +431,6 @@ func _select_or_move(square: Vector2i) -> void:
 		return
 
 	var from := selected_square
-	var moving := selected_piece
 	var is_en_passant: bool = chosen.get("en_passant",false)
 	var castle: String = chosen.get("castle","")
 	var promotion: String = chosen.get("promotion","")
@@ -552,6 +551,7 @@ func _restart_game() -> void:
 	hud.set_status("Nova partida iniciada")
 
 func _resign_game() -> void:
+	game_over = true
 	selected_piece = null
 	selected_square = Vector2i(-1, -1)
 	hud.show_result("Partida terminada", "O jogador desistiu. Inicia uma nova partida para voltar a jogar.")
