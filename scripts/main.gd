@@ -79,10 +79,10 @@ func _build_architecture() -> void:
 		_add_box(Vector3(20.0, 0.018, 0.045), Vector3(0, -0.315, z), gold_material)
 
 	for side in [-1.0, 1.0]:
-		_build_column(Vector3(side * 7.7, 0, -4.0), column_material, gold_material)
-		_build_column(Vector3(side * 7.7, 0, 3.7), column_material, gold_material)
-		_add_box(Vector3(0.22, 7.7, 0.22), Vector3(side * 7.7, 3.75, -4.0), gold_material)
-		_add_box(Vector3(0.22, 7.7, 0.22), Vector3(side * 7.7, 3.75, 3.7), gold_material)
+		_build_column(Vector3(side * 7.7, -0.34, -4.0), column_material, gold_material)
+		_build_column(Vector3(side * 7.7, -0.34, 3.7), column_material, gold_material)
+		_add_box(Vector3(0.22, 7.7, 0.22), Vector3(side * 7.7, 3.51, -4.0), gold_material)
+		_add_box(Vector3(0.22, 7.7, 0.22), Vector3(side * 7.7, 3.51, 3.7), gold_material)
 
 	_add_box(Vector3(16.0, 0.48, 0.55), Vector3(0, 7.55, -4.0), gold_material)
 	_add_box(Vector3(15.4, 0.32, 0.36), Vector3(0, 7.22, -4.0), column_material)
@@ -94,14 +94,14 @@ func _build_column(pos: Vector3, dark_material: StandardMaterial3D, gold_materia
 	var shaft_mesh := CylinderMesh.new()
 	shaft_mesh.top_radius = 0.43
 	shaft_mesh.bottom_radius = 0.56
-	shaft_mesh.height = 7.2
+	shaft_mesh.height = 7.8
 	shaft_mesh.radial_segments = 28
 	shaft.mesh = shaft_mesh
-	shaft.position = pos + Vector3(0, 3.6, 0)
+	shaft.position = pos + Vector3(0, 3.9, 0)
 	shaft.material_override = dark_material
 	add_child(shaft)
 
-	for y in [0.28, 0.55, 6.72, 7.0]:
+	for y in [0.28, 0.55, 7.1, 7.4]:
 		var collar := MeshInstance3D.new()
 		var ring := TorusMesh.new()
 		ring.inner_radius = 0.47 if y < 1.0 else 0.39
@@ -113,7 +113,7 @@ func _build_column(pos: Vector3, dark_material: StandardMaterial3D, gold_materia
 		collar.material_override = gold_material
 		add_child(collar)
 
-	for y in [0.12, 0.48, 6.9, 7.28]:
+	for y in [0.12, 0.48, 7.28, 7.6]:
 		var cap := MeshInstance3D.new()
 		var cap_mesh := CylinderMesh.new()
 		cap_mesh.top_radius = 0.68
@@ -136,8 +136,8 @@ func _build_skyline() -> void:
 		var width := 2.25 if i % 3 == 0 else 2.65
 		var depth := 1.5
 		var z := -25.0 - float(i % 3) * 1.4
-		_add_box(Vector3(width, h, depth), Vector3(x, h * 0.5 - 0.25, z), building_material)
-		_add_box(Vector3(width + 0.12, 0.12, depth + 0.12), Vector3(x, h - 0.18, z), building_material)
+		_add_box(Vector3(width, h, depth), Vector3(x, h * 0.5 - 0.34, z), building_material)
+		_add_box(Vector3(width + 0.12, 0.12, depth + 0.12), Vector3(x, h - 0.40, z), building_material)
 
 		var rows := int(h / 1.25)
 		for row in range(rows):
@@ -302,7 +302,7 @@ func _add_box(size: Vector3, pos: Vector3, material: Material) -> MeshInstance3D
 func _square_position(x: int, z: int) -> Vector3:
 	return Vector3((x - 3.5) * CELL_SIZE, BOARD_SURFACE_Y, (z - 3.5) * CELL_SIZE)
 
-func _input(event: InputEvent) -> void:
+func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch and event.pressed:
 		_handle_tap(event.position)
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
