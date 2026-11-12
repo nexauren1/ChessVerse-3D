@@ -8,6 +8,10 @@ func _initialize() -> void:
 	rules.reset()
 	var opening_knight_moves := rules.legal_moves_from(Vector2i(6,7))
 	_check(opening_knight_moves.size() == 2, "White knight must have two legal moves in the initial position")
+	var opening_knight_targets: Array[Vector2i] = []
+	for move in opening_knight_moves:
+		opening_knight_targets.append(move.to)
+	_check(opening_knight_targets.has(Vector2i(5,5)) and opening_knight_targets.has(Vector2i(7,5)), "White knight must reach f3 and h3 from the opening position")
 
 	_check(rules.all_legal_moves(true).size() == 20, "Initial position must have 20 legal white moves")
 	_check(not rules.play_move(Vector2i(4,6),Vector2i(4,3)), "A pawn cannot move three squares")
