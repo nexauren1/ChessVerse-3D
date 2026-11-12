@@ -1,8 +1,7 @@
-name: Validate Godot project
+name: ChessVerse 3D - Validate and Build
 
-# Keep validation automatic only for meaningful game-code changes.
 concurrency:
-  group: godot-validation-${{ github.ref }}
+  group: chessverse-main-${{ github.ref }}
   cancel-in-progress: true
 
 on:
@@ -13,15 +12,50 @@ on:
       - "scripts/**"
       - "scenes/**"
       - "project.godot"
+      - "export_presets.cfg"
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: read
 
 jobs:
-  validate:
+  cleanup:
+    name: Cancel previous workflow executions
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    steps:
+      - name: Cancel every other queued or running execution
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          runs_json=$(curl -fsSL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/runs?per_page=100")
+          printf '%s' "$runs_json" | jq -r --arg current "$GITHUB_RUN_ID" '
+            .workflow_runs[]
+            | select(
+                (.status == "in_progress" or .status == "queued" or .status == "waiting" or .status == "pending" or .status == "requested")
+                and ((.id | tostring) != $current)
+              )
+            | .id
+          ' | while IFS= read -r run_id; do
+            [ -n "$run_id" ] || continue
+            echo "Cancelling previous workflow run $run_id"
+            http_code=$(curl -sS -o /tmp/cancel-run.json -w "%{http_code}" -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/runs/$run_id/cancel")
+            echo "Run $run_id cancellation response: HTTP $http_code"
+          done
+
+  validate-and-build:
+    name: Validate game and export Android APK
+    needs: cleanup
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
     container:
       image: barichello/godot-ci:4.3
     steps:
@@ -36,3 +70,59 @@ jobs:
 
       - name: Run main scene headlessly
         run: timeout --signal=TERM --kill-after=5s 20s godot --headless --path . --quit-after 12
+
+      - name: Install matching Godot Android export templates
+        run: |
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.3.stable"
+          wget -q https://github.com/godotengine/godot-builds/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz -O /tmp/godot-templates.tpz
+          unzip -q /tmp/godot-templates.tpz -d /tmp/godot-templates
+          cp /tmp/godot-templates/templates/* "$HOME/.local/share/godot/export_templates/4.3.stable/"
+
+      - name: Install required Android SDK packages and configure signing
+        run: |
+          JAVA_PATH="${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}"
+          SDK_PATH="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/lib/android-sdk}}"
+          command -v sdkmanager
+          yes | sdkmanager --sdk_root="$SDK_PATH" --licenses
+          sdkmanager --sdk_root="$SDK_PATH" \
+            "platform-tools" \
+            "build-tools;34.0.0" \
+            "platforms;android-34" \
+            "cmdline-tools;latest" \
+            "cmake;3.10.2.4988404" \
+            "ndk;23.2.8568313"
+          test -x "$JAVA_PATH/bin/java"
+          test -x "$SDK_PATH/platform-tools/adb"
+          test -x "$SDK_PATH/build-tools/34.0.0/apksigner"
+          test -d "$SDK_PATH/platforms/android-34"
+          test -d "$SDK_PATH/ndk/23.2.8568313"
+          mkdir -p "$HOME/.config/godot" "$HOME/.android"
+          keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/android_sdk_path = "$SDK_PATH"
+          export/android/java_sdk_path = "$JAVA_PATH"
+          export/android/debug_keystore = "$HOME/.android/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+          echo "Using Java: $JAVA_PATH"
+          echo "Using Android SDK: $SDK_PATH"
+
+      - name: Import assets for Android export
+        run: timeout 120s godot --headless --editor --path . --quit
+
+      - name: Export debug APK
+        run: |
+          mkdir -p build
+          timeout 10m godot --headless --verbose --path . --export-debug "Android" build/ChessVerse3D.apk
+          test -s build/ChessVerse3D.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChessVerse3D-Android-debug
+          path: build/ChessVerse3D.apk
+          if-no-files-found: error
+          retention-days: 14
