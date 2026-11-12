@@ -249,7 +249,8 @@ func _is_square_attacked(position: Dictionary, target: Vector2i, by_white: bool)
 		var piece: Dictionary = position[square]
 		if bool(piece.white) != by_white:
 			continue
-		var delta := target-square
+		var square_pos: Vector2i = square
+		var delta: Vector2i = target - square_pos
 		match String(piece.kind):
 			"pawn":
 				var dir := -1 if by_white else 1
@@ -321,7 +322,8 @@ func _evaluate(position: Dictionary) -> float:
 	for square in position:
 		var piece: Dictionary = position[square]
 		var value: float = VALUES.get(piece.kind,0)
-		var center := 3.5-(abs(float(square.x)-3.5)+abs(float(square.y)-3.5))*0.12
+		var square_pos: Vector2i = square
+		var center: float = 3.5-(abs(float(square_pos.x)-3.5)+abs(float(square_pos.y)-3.5))*0.12
 		value += center*4.0 if piece.kind!="king" else 0.0
 		score += value if piece.white else -value
 	return score
