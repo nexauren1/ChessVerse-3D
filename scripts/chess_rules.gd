@@ -338,7 +338,8 @@ func _position_key(position: Dictionary, white_turn: bool, rights: Dictionary, e
 	var parts: Array[String] = []
 	for square in squares:
 		var piece: Dictionary = position[square]
-		parts.append("%d%d%s%s" % [square.x, square.y, "w" if piece.white else "b", String(piece.kind).left(1)])
+		var symbol: String = {"pawn":"p","knight":"n","bishop":"b","rook":"r","queen":"q","king":"k"}.get(piece.kind, "?")
+		parts.append("%d%d%s%s" % [square.x, square.y, "w" if piece.white else "b", symbol])
 	var castle_key := ""
 	for key in ["K","Q","k","q"]:
 		if rights.get(key,false):
