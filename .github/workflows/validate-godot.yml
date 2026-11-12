@@ -1,5 +1,9 @@
 name: Validate Godot project
 
+concurrency:
+  group: godot-validation
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]
