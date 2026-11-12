@@ -1,6 +1,8 @@
 ; ChessVerse 3D - Godot 4 project
 config_version=5
 
+; CI: keep Android export prerequisites validated
+
 [application]
 config/name="ChessVerse 3D"
 run/main_scene="res://scenes/main.tscn"
