@@ -197,7 +197,11 @@ func _build_moon() -> void:
 func _build_board_model() -> void:
 	var board_scene := load("res://assets/models/board.glb") as PackedScene
 	if board_scene != null:
-		add_child(board_scene.instantiate())
+		var board_root := board_scene.instantiate() as Node3D
+		add_child(board_root)
+		var dark_marble := _make_marble_material(Color(0.025, 0.035, 0.055), Color(0.27, 0.31, 0.37), 0.26)
+		var ivory_marble := _make_marble_material(Color(0.68, 0.61, 0.48), Color(0.92, 0.85, 0.7), 0.15)
+		_apply_board_marble(board_root, dark_marble, ivory_marble)
 	else:
 		push_warning("board.glb não foi importado. Executa o workflow de geração dos modelos.")
 
@@ -213,6 +217,51 @@ func _build_board_model() -> void:
 			body.add_child(collision)
 			body.set_meta("square", Vector2i(x, z))
 			add_child(body)
+
+func _make_marble_material(base_color: Color, vein_color: Color, vein_strength: float) -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+varying vec3 marble_world_position;
+uniform vec4 stone_base : source_color = vec4(0.025, 0.035, 0.055, 1.0);
+uniform vec4 stone_vein : source_color = vec4(0.27, 0.31, 0.37, 1.0);
+uniform float vein_strength = 0.25;
+
+void vertex() {
+	marble_world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+
+void fragment() {
+	float distortion = sin(marble_world_position.x * 0.7 + sin(marble_world_position.z * 0.43) * 1.4);
+	float vein_field = sin((marble_world_position.x * 0.9 + marble_world_position.z * 0.58 + distortion * 0.22) * 15.0);
+	float vein_line = 1.0 - smoothstep(0.02, 0.11, abs(vein_field));
+	float soft_cloud = 0.5 + 0.5 * sin(marble_world_position.x * 1.9 + marble_world_position.z * 1.35);
+	vec3 stone = mix(stone_base.rgb, stone_vein.rgb, vein_line * vein_strength + soft_cloud * 0.035);
+	ALBEDO = stone;
+	METALLIC = 0.22;
+	ROUGHNESS = 0.26;
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter("stone_base", base_color)
+	material.set_shader_parameter("stone_vein", vein_color)
+	material.set_shader_parameter("vein_strength", vein_strength)
+	return material
+
+func _apply_board_marble(node: Node, dark_marble: ShaderMaterial, ivory_marble: ShaderMaterial) -> void:
+	if node is MeshInstance3D and node.mesh != null:
+		var mesh_instance := node as MeshInstance3D
+		for surface in range(mesh_instance.mesh.get_surface_count()):
+			var source_material := mesh_instance.mesh.surface_get_material(surface)
+			if source_material == null:
+				continue
+			if source_material.resource_name.contains("Obsidian Marble"):
+				mesh_instance.set_surface_override_material(surface, dark_marble)
+			elif source_material.resource_name.contains("Warm Ivory Marble"):
+				mesh_instance.set_surface_override_material(surface, ivory_marble)
+	for child in node.get_children():
+		_apply_board_marble(child, dark_marble, ivory_marble)
 
 func _build_piece_materials() -> void:
 	white_piece_material = _material(Color(0.78, 0.48, 0.16), 0.99, 0.13)
@@ -412,7 +461,7 @@ func _is_valid_basic_move(from_square: Vector2i, to_square: Vector2i, piece: Nod
 
 	if pieces.has(to_square):
 		var target: Node3D = pieces[to_square]
-		if bool(target.get_meta("white")) == is_white:
+		if bool(target.get_meta("white")) == is_white or String(target.get_meta("kind")) == "king":
 			return false
 
 	match kind:
