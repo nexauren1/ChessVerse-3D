@@ -294,7 +294,7 @@ func _toggle_mode() -> void:
 
 func _open_tips() -> void:
 	mode_button.visible = false
-	_open_popup("Dicas de xadrez", "Controla o centro do tabuleiro, desenvolve os cavalos e bispos e protege o rei com o roque. As regras completas e as dicas legais serão ligadas ao motor de xadrez na próxima etapa.")
+	_open_popup("Dicas de xadrez", "Controla o centro, desenvolve as peças menores, protege o rei e evita deixar peças sem defesa. O motor já verifica movimentos legais, xeque e roque.")
 
 func _open_history() -> void:
 	mode_button.visible = false
@@ -341,4 +341,5 @@ func set_status(message: String) -> void:
 		status_label.text = message.to_upper()
 
 func show_result(title: String, body: String) -> void:
+	mode_button.visible = false
 	_open_popup(title, body)
