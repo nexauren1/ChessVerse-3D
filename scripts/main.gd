@@ -549,9 +549,11 @@ func _update_game_status() -> void:
 			hud.show_result("Xeque-mate","Vitória das Brancas." if not rules.white_to_move else "Vitória das Pretas.")
 		"stalemate":
 			game_over = true
+			clock_running = false
 			hud.show_result("Empate","A partida terminou por afogamento.")
 		"draw":
 			game_over = true
+			clock_running = false
 			hud.show_result("Empate","A partida terminou empatada.")
 		"check":
 			hud.set_status("Xeque!")
@@ -583,7 +585,10 @@ func _resign_game() -> void:
 	clock_running = false
 	selected_piece = null
 	selected_square = Vector2i(-1, -1)
-	hud.show_result("Partida terminada", "O jogador desistiu. Inicia uma nova partida para voltar a jogar.")
+	var winner := "Pretas" if white_to_move else "Brancas"
+	if versus_ai:
+		winner = "Computador" if white_to_move else "Jogador"
+	hud.show_result("Partida terminada", "Desistência. Vitória: " + winner + ". Inicia uma nova partida para voltar a jogar.")
 
 func _on_difficulty_changed(depth: int) -> void:
 	ai_depth = clampi(depth, 1, 3)
