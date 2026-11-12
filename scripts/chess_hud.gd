@@ -75,14 +75,24 @@ func _add_player_card(root: Control, right_side: bool, player_name: String, rati
 	row.add_theme_constant_override("separation", 12)
 	panel.add_child(row)
 
+	var avatar_frame := PanelContainer.new()
+	avatar_frame.custom_minimum_size = Vector2(66, 66)
+	var avatar_style := StyleBoxFlat.new()
+	avatar_style.bg_color = Color(0.025, 0.03, 0.045, 1.0)
+	avatar_style.border_color = Color(0.72, 0.48, 0.19) if not right_side else Color(0.36, 0.58, 0.82)
+	avatar_style.set_border_width_all(2)
+	avatar_style.set_corner_radius_all(40)
+	avatar_frame.add_theme_stylebox_override("panel", avatar_style)
+	row.add_child(avatar_frame)
+
 	var avatar := Label.new()
 	avatar.text = emblem
-	avatar.custom_minimum_size = Vector2(64, 64)
+	avatar.custom_minimum_size = Vector2(62, 62)
 	avatar.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	avatar.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	avatar.add_theme_color_override("font_color", GOLD if not right_side else Color(0.65, 0.79, 0.96))
-	avatar.add_theme_font_size_override("font_size", 48)
-	row.add_child(avatar)
+	avatar.add_theme_font_size_override("font_size", 46)
+	avatar_frame.add_child(avatar)
 
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
