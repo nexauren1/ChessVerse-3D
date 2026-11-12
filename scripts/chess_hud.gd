@@ -14,6 +14,7 @@ var status_label: Label
 var popup_overlay: ColorRect
 var popup_title: Label
 var popup_body: Label
+var history_text := "Ainda não existem jogadas registadas nesta partida."
 
 func _ready() -> void:
 	layer = 20
@@ -272,7 +273,25 @@ func _open_tips() -> void:
 	_open_popup("Dicas de xadrez", "Controla o centro do tabuleiro, desenvolve os cavalos e bispos e protege o rei com o roque. As regras completas e as dicas legais serão ligadas ao motor de xadrez na próxima etapa.")
 
 func _open_history() -> void:
-	_open_popup("Histórico de jogadas", "Ainda não existem jogadas registadas nesta partida.")
+	_open_popup("Histórico de jogadas", history_text)
+
+func set_history(moves: Array[Dictionary]) -> void:
+	if moves.is_empty():
+		history_text = "Ainda não existem jogadas registadas nesta partida."
+		return
+	var lines: Array[String] = []
+	for i in range(0, moves.size(), 2):
+		var white_move: Dictionary = moves[i]
+		var line := str(int(i / 2) + 1) + ". " + _square_name(white_move.from) + "–" + _square_name(white_move.to)
+		if i + 1 < moves.size():
+			var black_move: Dictionary = moves[i + 1]
+			line += "    " + _square_name(black_move.from) + "–" + _square_name(black_move.to)
+		lines.append(line)
+	history_text = "\n".join(lines)
+
+func _square_name(square: Vector2i) -> String:
+	var files := "abcdefgh"
+	return files.substr(square.x, 1) + str(8 - square.y)
 
 func _open_settings() -> void:
 	_open_popup("Definições", "Apresentação: Luxo metálico\nIdioma: Português\nModo de ecrã: Horizontal\nAs opções de som, câmara e dificuldade serão adicionadas.")
