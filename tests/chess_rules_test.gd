@@ -13,7 +13,7 @@ func _initialize() -> void:
 	_check(not rules.white_to_move, "Turn must pass to Black")
 	_check(rules.en_passant == Vector2i(4,5), "Double pawn move must set en passant target")
 
-	var ai_move: Dictionary = rules.play_ai_move(2)
+	var ai_move: Dictionary = rules.play_ai_move(1)
 	_check(not ai_move.is_empty(), "Computer must find a legal reply")
 	_check(rules.white_to_move, "Turn must return to White after computer move")
 	_check(rules.move_history.size() == 2, "Both moves must be stored")
