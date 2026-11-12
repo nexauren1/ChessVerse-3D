@@ -1,5 +1,9 @@
 name: Build Android APK
 
+concurrency:
+  group: android-build
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]
