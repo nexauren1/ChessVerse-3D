@@ -133,25 +133,40 @@ def knight():
     p.append(torus([0,.31,0],.185,.014,GOLD))
     return p
 
-for name, builder in {"pawn":pawn,"rook":rook,"knight":knight,"bishop":bishop,"queen":queen,"king":king}.items():
-    scene=trimesh.Scene(base_frame="ChessVerse3D")
-    for i,mesh in enumerate(builder()):
-        scene.add_geometry(mesh,node_name=f"{name}_detail_{i:02d}",geom_name=f"{name}_mesh_{i:02d}")
-    with open(os.path.join(PIECES,name+".glb"),"wb") as f:
-        f.write(scene.export(file_type="glb"))
+def export_grouped(meshes, filepath, label):
+    grouped = {}
+    for mesh in meshes:
+        material = getattr(mesh.visual, "material", None)
+        material_name = getattr(material, "name", "Default")
+        if material_name not in grouped:
+            grouped[material_name] = {"material": material, "meshes": []}
+        grouped[material_name]["meshes"].append(mesh)
 
-scene=trimesh.Scene(base_frame="ChessVerse3D")
+    scene = trimesh.Scene(base_frame="ChessVerse3D")
+    for material_name, item in grouped.items():
+        combined = trimesh.util.concatenate(item["meshes"])
+        if item["material"] is not None:
+            combined.visual = trimesh.visual.TextureVisuals(material=item["material"])
+        scene.add_geometry(combined, node_name=f"{label}_{material_name}", geom_name=f"{label}_{material_name}")
+
+    with open(filepath, "wb") as output:
+        output.write(scene.export(file_type="glb"))
+
+for name, builder in {"pawn":pawn,"rook":rook,"knight":knight,"bishop":bishop,"queen":queen,"king":king}.items():
+    export_grouped(builder(), os.path.join(PIECES, name + ".glb"), name)
+
 board_dark=mat("Obsidian Marble",[22,27,36,255],.38,.24)
 board_light=mat("Warm Ivory Marble",[190,174,143,255],.22,.28)
 board_gold=mat("Machined Brass Frame",[190,143,65,255],.90,.20)
 board_base=mat("Black Lacquer Plinth",[10,13,19,255],.62,.21)
-def add(mesh,name): scene.add_geometry(mesh,node_name=name,geom_name=name)
-add(box([0,-.13,0],[8.5,.28,8.5],board_base),"board_plinth")
-for x in [-4.16,4.16]: add(box([x,.035,0],[.07,.10,8.38],board_gold),f"frame_x_{x}")
-for z in [-4.16,4.16]: add(box([0,.035,z],[8.38,.10,.07],board_gold),f"frame_z_{z}")
+board_parts = [box([0,-.13,0],[8.5,.28,8.5],board_base)]
+for x in [-4.16,4.16]:
+    board_parts.append(box([x,.035,0],[.07,.10,8.38],board_gold))
+for z in [-4.16,4.16]:
+    board_parts.append(box([0,.035,z],[8.38,.10,.07],board_gold))
 for z in range(8):
     for x in range(8):
-        add(box([x-3.5,.025,z-3.5],[.995,.09,.995],board_light if (x+z)%2==0 else board_dark),f"square_{x}_{z}")
-with open(os.path.join(OUT,"board.glb"),"wb") as f:
-    f.write(scene.export(file_type="glb"))
-print("Generated 6 metallic chess pieces and 1 marble chessboard.")
+        board_parts.append(box([x-3.5,.025,z-3.5],[.995,.09,.995],board_light if (x+z)%2==0 else board_dark))
+export_grouped(board_parts, os.path.join(OUT, "board.glb"), "board")
+print("Generated 6 grouped metallic chess piece models and a grouped marble board.")
+
