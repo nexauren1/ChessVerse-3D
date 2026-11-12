@@ -130,7 +130,10 @@ func _build_skyline() -> void:
 	var building_material := _material(Color(0.025, 0.055, 0.105), 0.42, 0.36)
 	var window_gold := _material(Color(0.95, 0.55, 0.18), 0.3, 0.24, Color(1.0, 0.42, 0.10), 1.6)
 	var window_blue := _material(Color(0.12, 0.45, 0.85), 0.25, 0.22, Color(0.08, 0.32, 0.95), 1.2)
+	var gold_transforms: Array[Transform3D] = []
+	var blue_transforms: Array[Transform3D] = []
 	var heights := [5.0, 8.0, 4.0, 10.0, 6.0, 12.0, 5.0, 9.0, 4.5, 8.0, 6.0, 11.0, 5.0]
+
 	for i in range(heights.size()):
 		var x := -20.0 + float(i) * 3.35
 		var h: float = heights[i]
@@ -146,8 +149,30 @@ func _build_skyline() -> void:
 				var wx := x + (float(col) - 0.5) * (width * 0.48)
 				var wy := 0.55 + float(row) * 1.1
 				if wy < h - 0.35:
-					var wm := window_blue if (i + row + col) % 4 == 0 else window_gold
-					_add_box(Vector3(0.12, 0.24, 0.035), Vector3(wx, wy, z + depth * 0.51), wm)
+					var transform := Transform3D(Basis.IDENTITY, Vector3(wx, wy, z + depth * 0.51))
+					if (i + row + col) % 4 == 0:
+						blue_transforms.append(transform)
+					else:
+						gold_transforms.append(transform)
+
+	_add_window_multimesh(gold_transforms, window_gold)
+	_add_window_multimesh(blue_transforms, window_blue)
+
+func _add_window_multimesh(transforms: Array[Transform3D], material: Material) -> void:
+	if transforms.is_empty():
+		return
+	var window_mesh := BoxMesh.new()
+	window_mesh.size = Vector3(0.12, 0.24, 0.035)
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = window_mesh
+	multimesh.instance_count = transforms.size()
+	for i in range(transforms.size()):
+		multimesh.set_instance_transform(i, transforms[i])
+	var instance := MultiMeshInstance3D.new()
+	instance.multimesh = multimesh
+	instance.material_override = material
+	add_child(instance)
 
 func _build_moon() -> void:
 	var moon_material := _material(Color(0.43, 0.68, 0.9), 0.08, 0.72, Color(0.18, 0.43, 0.85), 0.75)
