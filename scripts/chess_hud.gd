@@ -19,6 +19,8 @@ var history_text := "Ainda não existem jogadas registadas nesta partida."
 var versus_ai := true
 var mode_button: Button
 var opponent_name_label: Label
+var white_clock_label: Label
+var black_clock_label: Label
 
 func _ready() -> void:
 	layer = 20
@@ -120,6 +122,10 @@ func _add_player_card(root: Control, right_side: bool, player_name: String, rati
 
 	var time_label := Label.new()
 	time_label.text = "◷  " + timer
+	if right_side:
+		black_clock_label = time_label
+	else:
+		white_clock_label = time_label
 	time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	time_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	time_label.custom_minimum_size = Vector2(78, 40)
@@ -343,3 +349,13 @@ func set_status(message: String) -> void:
 func show_result(title: String, body: String) -> void:
 	mode_button.visible = false
 	_open_popup(title, body)
+
+func set_clocks(white_seconds: float, black_seconds: float) -> void:
+	if is_instance_valid(white_clock_label):
+		white_clock_label.text = "◷  " + _format_clock(white_seconds)
+	if is_instance_valid(black_clock_label):
+		black_clock_label.text = "◷  " + _format_clock(black_seconds)
+
+func _format_clock(seconds: float) -> String:
+	var total := maxi(0, int(ceil(seconds)))
+	return "%02d:%02d" % [int(total / 60), total % 60]
