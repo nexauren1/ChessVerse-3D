@@ -1,12 +1,13 @@
 extends SceneTree
 
 const Rules = preload("res://scripts/chess_rules.gd")
+var failures := 0
 
 func _initialize() -> void:
 	var rules = Rules.new()
 	rules.reset()
 
-	assert(rules.all_legal_moves(true).size() == 20, "Initial position must have 20 legal white moves")
+	_check(rules.all_legal_moves(true).size() == 20, "Initial position must have 20 legal white moves")
 	assert(not rules.play_move(Vector2i(4,6),Vector2i(4,3)), "A pawn cannot move three squares")
 	assert(rules.play_move(Vector2i(4,6),Vector2i(4,4)), "e2-e4 should be legal")
 	assert(not rules.white_to_move, "Turn must pass to Black")
@@ -45,5 +46,14 @@ func _initialize() -> void:
 	fifty_move.halfmove_clock = 100
 	assert(fifty_move.game_state() == "draw", "Fifty-move rule must be a draw")
 
-	print("ChessRules tests passed.")
-	quit()
+	if failures == 0:
+		print("ChessRules tests passed.")
+		quit(0)
+	else:
+		push_error("ChessRules tests failed: " + str(failures))
+		quit(1)
+
+func _check(condition: bool, message: String = "Test failed") -> void:
+	if not condition:
+		failures += 1
+		push_error(message)
