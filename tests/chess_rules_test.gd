@@ -46,6 +46,38 @@ func _initialize() -> void:
 	fifty_move.halfmove_clock = 100
 	_check(fifty_move.game_state() == "draw", "Fifty-move rule must be a draw")
 
+
+	# En passant capture removes the pawn from the adjacent square.
+	var ep_rules = Rules.new()
+	ep_rules.reset()
+	_check(ep_rules.play_move(Vector2i(4,6),Vector2i(4,4)))
+	_check(ep_rules.play_move(Vector2i(0,1),Vector2i(0,2)))
+	_check(ep_rules.play_move(Vector2i(4,4),Vector2i(4,3)))
+	_check(ep_rules.play_move(Vector2i(3,1),Vector2i(3,3)))
+	_check(ep_rules.play_move(Vector2i(4,3),Vector2i(3,2)))
+	_check(ep_rules.piece_at(Vector2i(3,3)).is_empty(), "En passant must remove the captured pawn")
+
+	# Castling moves both king and rook.
+	var castle_rules = Rules.new()
+	castle_rules.reset()
+	castle_rules.board.clear()
+	castle_rules.board[Vector2i(4,7)] = {"kind":"king","white":true}
+	castle_rules.board[Vector2i(7,7)] = {"kind":"rook","white":true}
+	castle_rules.board[Vector2i(4,0)] = {"kind":"king","white":false}
+	_check(castle_rules.play_move(Vector2i(4,7),Vector2i(6,7)), "White king-side castling should be legal")
+	_check(castle_rules.piece_at(Vector2i(6,7)).kind == "king")
+	_check(castle_rules.piece_at(Vector2i(5,7)).kind == "rook")
+
+	# Promotion choice is respected by the rules engine.
+	var promotion_rules = Rules.new()
+	promotion_rules.reset()
+	promotion_rules.board.clear()
+	promotion_rules.board[Vector2i(4,7)] = {"kind":"king","white":true}
+	promotion_rules.board[Vector2i(4,0)] = {"kind":"king","white":false}
+	promotion_rules.board[Vector2i(0,1)] = {"kind":"pawn","white":true}
+	_check(promotion_rules.play_move(Vector2i(0,1),Vector2i(0,0),"knight"), "Pawn promotion should be legal")
+	_check(promotion_rules.piece_at(Vector2i(0,0)).kind == "knight", "Promotion piece must match the selected type")
+
 	if failures == 0:
 		print("ChessRules tests passed.")
 		quit(0)
