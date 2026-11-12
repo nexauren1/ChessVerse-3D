@@ -19,7 +19,7 @@ A premium, landscape-first 3D chess game built with Godot 4 for Android.
 - Android Compatibility renderer and an expanded 960×540 logical UI canvas.
 
 ## Important development status
-This is an early playable prototype, not a finished chess game. The current build remains a prototype. Repetition and fifty-move draw rules, richer chess notation, active clocks, sound, save/load, and Android export validation remain outstanding. AI strength is currently modest and should not be represented as a true 1600 ELO rating. The displayed AI name, ELO and clocks are currently presentation placeholders.
+This is an early playable prototype, not a finished chess game. The current build remains a prototype. Richer chess notation, selectable promotion piece, sound, save/load, and on-device Android QA remain outstanding. A 15-minute clock, timeout, threefold repetition, fifty-move rule, and insufficient-material draw are implemented. AI strength is currently modest and should not be represented as a true 1600 ELO rating. The displayed AI name and ELO remain presentation labels; the 15-minute countdown is functional and the AI is not rated 1600 ELO.
 
 ## Open the project
 1. Install a compatible Godot 4.x editor.
@@ -28,7 +28,7 @@ This is an early playable prototype, not a finished chess game. The current buil
 4. Run the main scene.
 
 ## Android
-The project is configured for landscape orientation and the Compatibility renderer. An Android export requires matching export templates and Android build prerequisites configured in the editor. No signed APK is included yet.
+The project is configured for landscape orientation and the Compatibility renderer. An Android export requires matching export templates and Android build prerequisites configured in the editor. A debug APK is built automatically by GitHub Actions and attached as a workflow artifact when the Android export job succeeds. A production-signed release still requires the developer's private signing key.
 
 ## Performance
 The environment uses low-poly procedural architecture, instanced skyline windows, grouped GLB meshes, and a small number of dynamic lights. Test frame rate, touch accuracy, thermal behaviour, and memory use on the target Android device before release.
