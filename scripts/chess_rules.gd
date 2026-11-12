@@ -74,13 +74,13 @@ func choose_ai_move(depth: int = 2) -> Dictionary:
 	if moves.is_empty():
 		return {}
 	var best_move: Dictionary = moves[0]
-	var best_score := -INF
+	var best_score := INF
 	for move in moves:
 		var next_board := board.duplicate(true)
 		var next_castling := castling.duplicate()
 		var next_ep: Vector2i = _apply_move(next_board, move, next_castling, en_passant)
 		var score := _minimax(next_board, next_castling, next_ep, true, depth - 1, -INF, INF)
-		if score > best_score:
+		if score < best_score:
 			best_score = score
 			best_move = move
 	return best_move
