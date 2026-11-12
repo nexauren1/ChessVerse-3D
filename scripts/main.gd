@@ -9,6 +9,7 @@ var camera: Camera3D
 var pieces: Dictionary = {}
 var selected_square := Vector2i(-1, -1)
 var selected_piece: Node3D
+var white_to_move := true
 var white_piece_material: StandardMaterial3D
 var silver_piece_material: StandardMaterial3D
 var hud
@@ -323,18 +324,29 @@ func _handle_tap(screen_position: Vector2) -> void:
 
 func _select_or_move(square: Vector2i) -> void:
 	if selected_piece == null:
-		if pieces.has(square):
-			selected_square = square
-			selected_piece = pieces[square]
-			selected_piece.scale = Vector3.ONE * 1.08
+		_try_select_piece(square)
 		return
 
 	if square == selected_square:
 		selected_piece.scale = Vector3.ONE
 		selected_piece = null
+		selected_square = Vector2i(-1, -1)
 		return
 
-	if pieces.has(square) and pieces[square] != selected_piece:
+	if pieces.has(square):
+		var tapped_piece: Node3D = pieces[square]
+		if bool(tapped_piece.get_meta("white")) == white_to_move:
+			selected_piece.scale = Vector3.ONE
+			selected_piece = null
+			selected_square = Vector2i(-1, -1)
+			_try_select_piece(square)
+			return
+
+	if not _is_valid_basic_move(selected_square, square, selected_piece):
+		hud.set_status("Jogada inválida")
+		return
+
+	if pieces.has(square):
 		var captured: Node3D = pieces[square]
 		captured.queue_free()
 	pieces.erase(selected_square)
@@ -349,6 +361,72 @@ func _select_or_move(square: Vector2i) -> void:
 	tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.tween_property(moving_piece, "position", _square_position(square.x, square.y), 0.28)
 
+	white_to_move = not white_to_move
+	hud.set_turn(white_to_move)
+	hud.set_status("Vez das pretas" if not white_to_move else "Vez das brancas")
+
+func _try_select_piece(square: Vector2i) -> void:
+	if not pieces.has(square):
+		return
+	var candidate: Node3D = pieces[square]
+	if bool(candidate.get_meta("white")) != white_to_move:
+		return
+	selected_square = square
+	selected_piece = candidate
+	selected_piece.scale = Vector3.ONE * 1.08
+	hud.set_status("Peça seleccionada")
+
+func _is_valid_basic_move(from_square: Vector2i, to_square: Vector2i, piece: Node3D) -> bool:
+	if from_square == to_square:
+		return false
+
+	var dx := to_square.x - from_square.x
+	var dz := to_square.y - from_square.y
+	var kind: String = piece.get_meta("kind")
+	var is_white: bool = piece.get_meta("white")
+
+	if pieces.has(to_square):
+		var target: Node3D = pieces[to_square]
+		if bool(target.get_meta("white")) == is_white:
+			return false
+
+	match kind:
+		"pawn":
+			var direction := -1 if is_white else 1
+			if dx == 0 and not pieces.has(to_square):
+				if dz == direction:
+					return true
+				var starting_rank := 6 if is_white else 1
+				var middle_square := Vector2i(from_square.x, from_square.y + direction)
+				if from_square.y == starting_rank and dz == direction * 2 and not pieces.has(middle_square):
+					return true
+			if abs(dx) == 1 and dz == direction and pieces.has(to_square):
+				return true
+			return false
+		"knight":
+			return (abs(dx) == 1 and abs(dz) == 2) or (abs(dx) == 2 and abs(dz) == 1)
+		"bishop":
+			return abs(dx) == abs(dz) and _is_path_clear(from_square, to_square)
+		"rook":
+			return (dx == 0 or dz == 0) and _is_path_clear(from_square, to_square)
+		"queen":
+			var straight := dx == 0 or dz == 0
+			var diagonal := abs(dx) == abs(dz)
+			return (straight or diagonal) and _is_path_clear(from_square, to_square)
+		"king":
+			return max(abs(dx), abs(dz)) == 1
+	return false
+
+func _is_path_clear(from_square: Vector2i, to_square: Vector2i) -> bool:
+	var step_x := int(sign(to_square.x - from_square.x))
+	var step_z := int(sign(to_square.y - from_square.y))
+	var cursor := from_square + Vector2i(step_x, step_z)
+	while cursor != to_square:
+		if pieces.has(cursor):
+			return false
+		cursor += Vector2i(step_x, step_z)
+	return true
+
 func _restart_game() -> void:
 	for piece in pieces.values():
 		if is_instance_valid(piece):
@@ -356,6 +434,7 @@ func _restart_game() -> void:
 	pieces.clear()
 	selected_piece = null
 	selected_square = Vector2i(-1, -1)
+	white_to_move = true
 	_build_starting_position()
 	hud.set_turn(true)
 	hud.set_status("Nova partida iniciada")
