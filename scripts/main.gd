@@ -317,8 +317,8 @@ func _apply_piece_finish(node: Node, finish: StandardMaterial3D) -> void:
 func _build_camera() -> void:
 	camera = Camera3D.new()
 	camera.position = Vector3(0.0, 12.6, 14.8)
-	camera.look_at(Vector3(0.0, 0.0, -2.0), Vector3.UP)
-	camera.fov = 49.0
+	camera.look_at(Vector3(0.0, 4.5, -2.0), Vector3.UP)
+	camera.fov = 52.0
 	camera.current = true
 	add_child(camera)
 
