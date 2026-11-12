@@ -6,6 +6,8 @@ var failures := 0
 func _initialize() -> void:
 	var rules = Rules.new()
 	rules.reset()
+	var opening_knight_moves := rules.legal_moves_from(Vector2i(6,7))
+	_check(opening_knight_moves.size() == 2, "White knight must have two legal moves in the initial position")
 
 	_check(rules.all_legal_moves(true).size() == 20, "Initial position must have 20 legal white moves")
 	_check(not rules.play_move(Vector2i(4,6),Vector2i(4,3)), "A pawn cannot move three squares")
@@ -18,8 +20,6 @@ func _initialize() -> void:
 	_check(rules.white_to_move, "Turn must return to White after computer move")
 	_check(rules.move_history.size() == 2, "Both moves must be stored")
 
-	var knight_moves := rules.legal_moves_from(Vector2i(6,7))
-	_check(knight_moves.size() == 2, "White knight should have two legal opening moves")
 
 
 	# Fool's Mate: confirms that checkmate is detected from legal moves.
