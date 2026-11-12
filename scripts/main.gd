@@ -469,6 +469,8 @@ func _select_or_move(square: Vector2i) -> void:
 	selected_square = Vector2i(-1,-1)
 	white_to_move = rules.white_to_move
 	hud.set_turn(white_to_move)
+	if not versus_ai:
+		_orient_camera_for_turn(white_to_move)
 	_update_game_status()
 	if game_over:
 		return
@@ -495,6 +497,10 @@ func _on_mode_changed(ai_enabled: bool) -> void:
 	versus_ai = ai_enabled
 	hud.set_game_mode(versus_ai)
 	hud.set_status("Modo contra computador" if versus_ai else "Modo para dois jogadores")
+	if not versus_ai:
+		_orient_camera_for_turn(rules.white_to_move)
+	else:
+		_orient_camera_for_turn(true)
 	if versus_ai and not rules.white_to_move:
 		_play_ai_turn()
 
@@ -634,3 +640,13 @@ func _clear_move_markers() -> void:
 		if is_instance_valid(marker):
 			marker.queue_free()
 	move_markers.clear()
+
+func _orient_camera_for_turn(white_turn: bool) -> void:
+	if not is_instance_valid(camera):
+		return
+	var target := Vector3(0.0, 4.5, -2.0)
+	var destination := Vector3(0.0, 12.6, 14.8) if white_turn else Vector3(0.0, 12.6, -18.8)
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(camera, "position", destination, 0.45)
+	tween.parallel().tween_callback(func(): camera.look_at(target, Vector3.UP))
