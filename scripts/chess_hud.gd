@@ -2,6 +2,7 @@ extends CanvasLayer
 
 signal restart_requested
 signal resign_requested
+signal mode_changed(versus_ai: bool)
 
 const GOLD := Color(0.93, 0.68, 0.28)
 const PALE_GOLD := Color(1.0, 0.84, 0.55)
@@ -15,6 +16,8 @@ var popup_overlay: ColorRect
 var popup_title: Label
 var popup_body: Label
 var history_text := "Ainda não existem jogadas registadas nesta partida."
+var versus_ai := true
+var mode_button: Button
 
 func _ready() -> void:
 	layer = 20
@@ -210,6 +213,16 @@ func _build_popup(root: Control) -> void:
 	popup_body.add_theme_font_size_override("font_size", 17)
 	content.add_child(popup_body)
 
+	mode_button = Button.new()
+	mode_button.text = "Modo: Contra IA"
+	mode_button.custom_minimum_size = Vector2(220, 42)
+	mode_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	mode_button.add_theme_stylebox_override("normal", _button_style(false))
+	mode_button.add_theme_stylebox_override("hover", _button_style(true))
+	mode_button.add_theme_color_override("font_color", PALE_GOLD)
+	mode_button.pressed.connect(_toggle_mode)
+	content.add_child(mode_button)
+
 	var close_button := Button.new()
 	close_button.text = "Continuar"
 	close_button.custom_minimum_size = Vector2(150, 48)
@@ -267,12 +280,21 @@ func _open_popup(title: String, body: String) -> void:
 	popup_overlay.visible = true
 
 func _open_menu() -> void:
-	_open_popup("Menu da partida", "ChessVerse 3D\nModo clássico • Tabuleiro 3D\nEscolhe Continuar para regressar ao jogo.")
+	mode_button.visible = true
+	mode_button.text = "Modo: Contra IA" if versus_ai else "Modo: 2 jogadores"
+	_open_popup("Menu da partida", "ChessVerse 3D\nEscolhe o modo de jogo. A alteração aplica-se à próxima jogada.")
+
+func _toggle_mode() -> void:
+	versus_ai = not versus_ai
+	mode_button.text = "Modo: Contra IA" if versus_ai else "Modo: 2 jogadores"
+	mode_changed.emit(versus_ai)
 
 func _open_tips() -> void:
+	mode_button.visible = false
 	_open_popup("Dicas de xadrez", "Controla o centro do tabuleiro, desenvolve os cavalos e bispos e protege o rei com o roque. As regras completas e as dicas legais serão ligadas ao motor de xadrez na próxima etapa.")
 
 func _open_history() -> void:
+	mode_button.visible = false
 	_open_popup("Histórico de jogadas", history_text)
 
 func set_history(moves: Array[Dictionary]) -> void:
@@ -294,6 +316,7 @@ func _square_name(square: Vector2i) -> String:
 	return files.substr(square.x, 1) + str(8 - square.y)
 
 func _open_settings() -> void:
+	mode_button.visible = false
 	_open_popup("Definições", "Apresentação: Luxo metálico\nIdioma: Português\nModo de ecrã: Horizontal\nAs opções de som, câmara e dificuldade serão adicionadas.")
 
 func _request_restart() -> void:
