@@ -649,4 +649,4 @@ func _orient_camera_for_turn(white_turn: bool) -> void:
 	var tween := create_tween()
 	tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	tween.tween_property(camera, "position", destination, 0.45)
-	tween.parallel().tween_callback(func(): camera.look_at(target, Vector3.UP))
+	tween.tween_callback(func(): camera.look_at(target, Vector3.UP))
