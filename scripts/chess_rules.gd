@@ -54,7 +54,7 @@ func play_move(from_square: Vector2i, to_square: Vector2i, promotion: String = "
 	if found.has("promotion"):
 		found.promotion = promotion
 	move_history.append(found.duplicate(true))
-	_apply_move(board, found, castling, en_passant)
+	en_passant = _apply_move(board, found, castling, en_passant)
 	white_to_move = not white_to_move
 	if white_to_move:
 		fullmove_number += 1
@@ -67,8 +67,6 @@ func game_state() -> String:
 	var moves := all_legal_moves(white_to_move)
 	if moves.is_empty():
 		return "checkmate" if is_in_check(white_to_move) else "stalemate"
-	if halfmove_clock >= 100:
-		return "draw"
 	return "check" if is_in_check(white_to_move) else "playing"
 
 func choose_ai_move(depth: int = 2) -> Dictionary:
@@ -80,8 +78,8 @@ func choose_ai_move(depth: int = 2) -> Dictionary:
 	for move in moves:
 		var next_board := board.duplicate(true)
 		var next_castling := castling.duplicate()
-		_apply_move(next_board, move, next_castling, en_passant)
-		var score := _minimax(next_board, next_castling, _next_ep(move), true, depth - 1, -INF, INF)
+		var next_ep: Vector2i = _apply_move(next_board, move, next_castling, en_passant)
+		var score := _minimax(next_board, next_castling, next_ep, true, depth - 1, -INF, INF)
 		if score > best_score:
 			best_score = score
 			best_move = move
@@ -94,7 +92,7 @@ func play_ai_move(depth: int = 2) -> Dictionary:
 	if move.has("promotion"):
 		move.promotion = "queen"
 	move_history.append(move.duplicate(true))
-	_apply_move(board, move, castling, en_passant)
+	en_passant = _apply_move(board, move, castling, en_passant)
 	white_to_move = true
 	fullmove_number += 1
 	return move
@@ -105,7 +103,7 @@ func _legal_moves_for(position: Dictionary, from: Vector2i, piece: Dictionary, r
 	for move in candidates:
 		var test_board := position.duplicate(true)
 		var test_rights := rights.duplicate()
-		_apply_move(test_board, move, test_rights, ep)
+		var ignored_ep: Vector2i = _apply_move(test_board, move, test_rights, ep)
 		if not _is_in_check(test_board, bool(piece.white)):
 			legal.append(move)
 	return legal
@@ -177,7 +175,7 @@ func _add_if_available(moves: Array[Dictionary], position: Dictionary, from: Vec
 	if _inside(to) and (not position.has(to) or bool(position[to].white) != white):
 		moves.append({"from":from,"to":to})
 
-func _apply_move(position: Dictionary, move: Dictionary, rights: Dictionary, old_ep: Vector2i) -> void:
+func _apply_move(position: Dictionary, move: Dictionary, rights: Dictionary, old_ep: Vector2i) -> Vector2i:
 	var from: Vector2i = move.from
 	var to: Vector2i = move.to
 	var piece: Dictionary = position[from]
@@ -207,13 +205,8 @@ func _apply_move(position: Dictionary, move: Dictionary, rights: Dictionary, old
 		piece.kind = move.get("promotion","queen")
 	position[to] = piece
 	if kind == "pawn" and abs(to.y-from.y) == 2:
-		en_passant = Vector2i(from.x,(from.y+to.y)/2)
-	else:
-		en_passant = Vector2i(-1,-1)
-	if kind == "pawn" or old_ep != Vector2i(-1,-1) or position.has(to):
-		halfmove_clock = 0
-	else:
-		halfmove_clock += 1
+		return Vector2i(from.x,(from.y+to.y)/2)
+	return Vector2i(-1,-1)
 
 func _update_rook_right(rights: Dictionary, square: Vector2i) -> void:
 	if square == Vector2i(0,7): rights["Q"] = false
@@ -292,8 +285,8 @@ func _minimax(position: Dictionary, rights: Dictionary, ep: Vector2i, white_turn
 		for move in moves:
 			var next := position.duplicate(true)
 			var next_rights := rights.duplicate()
-			_apply_move(next,move,next_rights,ep)
-			best=max(best,_minimax(next,next_rights,_next_ep(move),false,depth-1,alpha,beta))
+			var next_ep: Vector2i = _apply_move(next,move,next_rights,ep)
+			best=max(best,_minimax(next,next_rights,next_ep,false,depth-1,alpha,beta))
 			alpha=max(alpha,best)
 			if beta<=alpha: break
 		return best
@@ -301,8 +294,8 @@ func _minimax(position: Dictionary, rights: Dictionary, ep: Vector2i, white_turn
 	for move in moves:
 		var next := position.duplicate(true)
 		var next_rights := rights.duplicate()
-		_apply_move(next,move,next_rights,ep)
-		best=min(best,_minimax(next,next_rights,_next_ep(move),true,depth-1,alpha,beta))
+		var next_ep: Vector2i = _apply_move(next,move,next_rights,ep)
+		best=min(best,_minimax(next,next_rights,next_ep,true,depth-1,alpha,beta))
 		beta=min(beta,best)
 		if beta<=alpha: break
 	return best
