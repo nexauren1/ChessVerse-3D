@@ -1,41 +1,35 @@
 # ChessVerse 3D
 
-A premium, mobile-first 3D chess game built with Godot 4.
+A premium, landscape-first 3D chess game built with Godot 4 for Android.
 
-## Vision
-- Luxurious black-marble board with warm gold details.
-- Metallic chess pieces and cinematic lighting.
-- Touch-first controls and animated piece movement.
-- Local two-player mode and a computer opponent.
-- Portuguese and English interface planned.
+## Visual direction
+- Black marble and ivory chessboard with a machined brass frame.
+- Gold pieces for the near side and polished silver pieces for the far side.
+- A cinematic palace hall with dark columns, warm gold inlays, a moonlit futuristic skyline, and reflective metal materials.
+- Gold-framed player panels, turn indicator, and side controls.
+- Landscape interface designed around a wide 16:9 composition.
 
-## Current status
-**Foundation / prototype stage.** The project is being prepared for Android using Godot 4 and the Compatibility renderer. The first milestone is a procedural 3D board and starting position. Complete legal chess rules, AI, persistence, audio, and Android export testing are subsequent milestones.
+## Current implementation
+- Procedural GLB chessboard and six procedural piece models.
+- Runtime palace architecture, skyline, moon, lighting, and reflection probe.
+- Touch/mouse selection and animated piece movement prototype.
+- Runtime HUD with player panels, turn banner, action controls, and popup panels.
+- Android Compatibility renderer to target a broad range of mobile GPUs.
+
+## Important development status
+The current interaction layer is still a visual prototype. Full legal chess move validation, check/checkmate, castling, en passant, promotion, the computer opponent, clock logic, move history, sound, save/load, and Android export validation remain to be implemented and tested.
 
 ## Open the project
-1. Install Godot 4.x (Godot Editor or Android Editor).
+1. Install a compatible Godot 4.x editor.
 2. Clone or download this repository.
-3. Import the folder containing `project.godot`.
+3. Import the folder containing project.godot.
 4. Run the main scene.
 
-## Project structure
-- `scenes/`: game scenes.
-- `scripts/`: gameplay and presentation logic.
-- `assets/`: models, textures, audio, fonts.
-- `docs/`: technical notes and milestones.
+## Android
+The project is configured for landscape orientation and the Compatibility renderer. An Android export requires matching export templates and Android build prerequisites configured in the editor. No signed APK is included yet.
 
-## Mobile target
-- Android portrait-first interface.
-- Godot 4 Compatibility renderer for broad mobile GPU support.
-- Procedural geometry initially keeps the project lightweight.
-
-## Roadmap
-1. Procedural board and 32-piece starting layout.
-2. Touch selection, move highlighting, and animated moves.
-3. Complete legal chess rules and game-state validation.
-4. Local two-player mode.
-5. Computer opponent with difficulty levels.
-6. Settings, themes, sound, persistence, and Android release testing.
+## Performance
+The environment is assembled from low-poly primitive meshes and uses few dynamic lights. Run tests on the target Android device and reduce glow, shadow, or skyline detail if its GPU needs a lighter profile.
 
 ## License
 To be selected before public distribution.
