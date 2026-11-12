@@ -10,11 +10,15 @@ var pieces: Dictionary = {}
 var selected_square := Vector2i(-1, -1)
 var selected_piece: Node3D
 var white_to_move := true
+var rules: ChessRules
+var game_over := false
 var white_piece_material: StandardMaterial3D
 var silver_piece_material: StandardMaterial3D
 var hud
 
 func _ready() -> void:
+	rules = ChessRules.new()
+	rules.reset()
 	_build_environment()
 	_build_architecture()
 	_build_board_model()
@@ -397,111 +401,128 @@ func _handle_tap(screen_position: Vector2) -> void:
 	_select_or_move(collider.get_meta("square"))
 
 func _select_or_move(square: Vector2i) -> void:
+	if game_over or not white_to_move:
+		return
 	if selected_piece == null:
 		_try_select_piece(square)
 		return
-
 	if square == selected_square:
 		selected_piece.scale = Vector3.ONE
 		selected_piece = null
-		selected_square = Vector2i(-1, -1)
+		selected_square = Vector2i(-1,-1)
+		return
+	if pieces.has(square) and bool(pieces[square].get_meta("white")):
+		selected_piece.scale = Vector3.ONE
+		selected_piece = null
+		selected_square = Vector2i(-1,-1)
+		_try_select_piece(square)
 		return
 
-	if pieces.has(square):
-		var tapped_piece: Node3D = pieces[square]
-		if bool(tapped_piece.get_meta("white")) == white_to_move:
-			selected_piece.scale = Vector3.ONE
-			selected_piece = null
-			selected_square = Vector2i(-1, -1)
-			_try_select_piece(square)
-			return
-
-	if not _is_valid_basic_move(selected_square, square, selected_piece):
-		hud.set_status("Jogada inválida")
+	var legal := rules.legal_moves_from(selected_square)
+	var chosen: Dictionary = {}
+	for move in legal:
+		if move.to == square:
+			chosen = move
+			break
+	if chosen.is_empty():
+		hud.set_status("Jogada ilegal")
 		return
 
-	if pieces.has(square):
-		var captured: Node3D = pieces[square]
-		captured.queue_free()
-	pieces.erase(selected_square)
-	pieces[square] = selected_piece
-	selected_piece.set_meta("square", square)
-	selected_piece.scale = Vector3.ONE
-	var moving_piece := selected_piece
+	var from := selected_square
+	var moving := selected_piece
+	var is_en_passant: bool = chosen.get("en_passant",false)
+	var castle: String = chosen.get("castle","")
+	var promotion: String = chosen.get("promotion","")
+	if not rules.play_move(from,square):
+		return
+	_sync_visual_move(from,square,is_en_passant,castle,promotion)
 	selected_piece = null
-	selected_square = Vector2i(-1, -1)
-
-	var tween := create_tween()
-	tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(moving_piece, "position", _square_position(square.x, square.y), 0.28)
-
-	white_to_move = not white_to_move
+	selected_square = Vector2i(-1,-1)
+	white_to_move = rules.white_to_move
 	hud.set_turn(white_to_move)
-	hud.set_status("Vez das pretas" if not white_to_move else "Vez das brancas")
+	_update_game_status()
+	if game_over:
+		return
+
+	await get_tree().create_timer(0.45).timeout
+	if game_over:
+		return
+	var ai_move := rules.play_ai_move(2)
+	if ai_move.is_empty():
+		_update_game_status()
+		return
+	_sync_visual_move(ai_move.from,ai_move.to,bool(ai_move.get("en_passant",false)),String(ai_move.get("castle","")),String(ai_move.get("promotion","")))
+	white_to_move = rules.white_to_move
+	hud.set_turn(white_to_move)
+	_update_game_status()
 
 func _try_select_piece(square: Vector2i) -> void:
 	if not pieces.has(square):
 		return
 	var candidate: Node3D = pieces[square]
-	if bool(candidate.get_meta("white")) != white_to_move:
+	if not bool(candidate.get_meta("white")) or not white_to_move:
 		return
 	selected_square = square
 	selected_piece = candidate
 	selected_piece.scale = Vector3.ONE * 1.08
 	hud.set_status("Peça seleccionada")
 
-func _is_valid_basic_move(from_square: Vector2i, to_square: Vector2i, piece: Node3D) -> bool:
-	if from_square == to_square:
-		return false
+func _sync_visual_move(from: Vector2i, to: Vector2i, is_en_passant: bool = false, castle: String = "", promotion: String = "") -> void:
+	var mover: Node3D = pieces.get(from)
+	if mover == null:
+		return
+	var is_white: bool = mover.get_meta("white")
+	var captured_square := to
+	if is_en_passant:
+		captured_square = to + Vector2i(0,1 if is_white else -1)
+	if pieces.has(captured_square) and captured_square != from:
+		var captured: Node3D = pieces[captured_square]
+		captured.queue_free()
+		pieces.erase(captured_square)
+	pieces.erase(from)
+	pieces[to] = mover
+	mover.set_meta("square",to)
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(mover,"position",_square_position(to.x,to.y),0.28)
 
-	var dx := to_square.x - from_square.x
-	var dz := to_square.y - from_square.y
-	var kind: String = piece.get_meta("kind")
-	var is_white: bool = piece.get_meta("white")
+	if castle != "":
+		var rook_from := Vector2i(7,from.y) if castle=="king" else Vector2i(0,from.y)
+		var rook_to := Vector2i(5,from.y) if castle=="king" else Vector2i(3,from.y)
+		if pieces.has(rook_from):
+			var rook: Node3D = pieces[rook_from]
+			pieces.erase(rook_from)
+			pieces[rook_to] = rook
+			rook.set_meta("square",rook_to)
+			var rook_tween := create_tween()
+			rook_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			rook_tween.tween_property(rook,"position",_square_position(rook_to.x,rook_to.y),0.28)
 
-	if pieces.has(to_square):
-		var target: Node3D = pieces[to_square]
-		if bool(target.get_meta("white")) == is_white or String(target.get_meta("kind")) == "king":
-			return false
+	if promotion != "":
+		mover.queue_free()
+		pieces.erase(to)
+		_add_piece(to.x,to.y,promotion,is_white)
 
-	match kind:
-		"pawn":
-			var direction := -1 if is_white else 1
-			if dx == 0 and not pieces.has(to_square):
-				if dz == direction:
-					return true
-				var starting_rank := 6 if is_white else 1
-				var middle_square := Vector2i(from_square.x, from_square.y + direction)
-				if from_square.y == starting_rank and dz == direction * 2 and not pieces.has(middle_square):
-					return true
-			if abs(dx) == 1 and dz == direction and pieces.has(to_square):
-				return true
-			return false
-		"knight":
-			return (abs(dx) == 1 and abs(dz) == 2) or (abs(dx) == 2 and abs(dz) == 1)
-		"bishop":
-			return abs(dx) == abs(dz) and _is_path_clear(from_square, to_square)
-		"rook":
-			return (dx == 0 or dz == 0) and _is_path_clear(from_square, to_square)
-		"queen":
-			var straight := dx == 0 or dz == 0
-			var diagonal := abs(dx) == abs(dz)
-			return (straight or diagonal) and _is_path_clear(from_square, to_square)
-		"king":
-			return max(abs(dx), abs(dz)) == 1
-	return false
-
-func _is_path_clear(from_square: Vector2i, to_square: Vector2i) -> bool:
-	var step_x := int(sign(to_square.x - from_square.x))
-	var step_z := int(sign(to_square.y - from_square.y))
-	var cursor := from_square + Vector2i(step_x, step_z)
-	while cursor != to_square:
-		if pieces.has(cursor):
-			return false
-		cursor += Vector2i(step_x, step_z)
-	return true
+func _update_game_status() -> void:
+	var state := rules.game_state()
+	match state:
+		"checkmate":
+			game_over = true
+			hud.show_result("Xeque-mate","Vitória das Brancas." if not rules.white_to_move else "Vitória das Pretas.")
+		"stalemate":
+			game_over = true
+			hud.show_result("Empate","A partida terminou por afogamento.")
+		"draw":
+			game_over = true
+			hud.show_result("Empate","A partida terminou empatada.")
+		"check":
+			hud.set_status("Xeque!")
+		_:
+			hud.set_status("Vez das Brancas" if rules.white_to_move else "Vez das Pretas")
 
 func _restart_game() -> void:
+	game_over = false
+	rules.reset()
 	for piece in pieces.values():
 		if is_instance_valid(piece):
 			piece.queue_free()
