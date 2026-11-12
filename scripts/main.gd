@@ -16,6 +16,8 @@ var versus_ai := true
 var white_clock := 900.0
 var black_clock := 900.0
 var clock_running := true
+var ai_depth := 2
+var time_control_seconds := 900.0
 var white_piece_material: StandardMaterial3D
 var silver_piece_material: StandardMaterial3D
 var hud
@@ -53,6 +55,8 @@ func _build_hud() -> void:
 	hud.restart_requested.connect(_restart_game)
 	hud.resign_requested.connect(_resign_game)
 	hud.mode_changed.connect(_on_mode_changed)
+	hud.difficulty_changed.connect(_on_difficulty_changed)
+	hud.time_control_changed.connect(_on_time_control_changed)
 	hud.set_turn(true)
 	hud.set_clocks(white_clock, black_clock)
 
@@ -472,7 +476,7 @@ func _play_ai_turn() -> void:
 	await get_tree().create_timer(0.45).timeout
 	if game_over or not versus_ai or rules.white_to_move:
 		return
-	var ai_move := rules.play_ai_move(2)
+	var ai_move := rules.play_ai_move(ai_depth)
 	if ai_move.is_empty():
 		_update_game_status()
 		return
@@ -557,8 +561,8 @@ func _update_game_status() -> void:
 func _restart_game() -> void:
 	game_over = false
 	clock_running = true
-	white_clock = 900.0
-	black_clock = 900.0
+	white_clock = time_control_seconds
+	black_clock = time_control_seconds
 	rules.reset()
 	white_to_move = true
 	hud.set_history(rules.move_history)
@@ -580,3 +584,15 @@ func _resign_game() -> void:
 	selected_piece = null
 	selected_square = Vector2i(-1, -1)
 	hud.show_result("Partida terminada", "O jogador desistiu. Inicia uma nova partida para voltar a jogar.")
+
+func _on_difficulty_changed(depth: int) -> void:
+	ai_depth = clampi(depth, 1, 3)
+	hud.set_status("Dificuldade da IA: " + ["", "Fácil", "Normal", "Difícil"][ai_depth])
+
+func _on_time_control_changed(seconds: int) -> void:
+	time_control_seconds = float(clampi(seconds, 300, 1800))
+	white_clock = time_control_seconds
+	black_clock = time_control_seconds
+	if is_instance_valid(hud):
+		hud.set_clocks(white_clock, black_clock)
+	hud.set_status("Tempo actualizado. Reinicia para iniciar com o novo relógio.")
