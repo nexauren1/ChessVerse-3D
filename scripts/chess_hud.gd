@@ -18,6 +18,7 @@ var popup_body: Label
 var history_text := "Ainda não existem jogadas registadas nesta partida."
 var versus_ai := true
 var mode_button: Button
+var opponent_name_label: Label
 
 func _ready() -> void:
 	layer = 20
@@ -105,6 +106,8 @@ func _add_player_card(root: Control, right_side: bool, player_name: String, rati
 
 	var name_label := Label.new()
 	name_label.text = player_name
+	if right_side:
+		opponent_name_label = name_label
 	name_label.add_theme_color_override("font_color", WHITE)
 	name_label.add_theme_font_size_override("font_size", 20)
 	info.add_child(name_label)
@@ -324,6 +327,10 @@ func _request_restart() -> void:
 
 func _request_resign() -> void:
 	resign_requested.emit()
+
+func set_game_mode(ai_enabled: bool) -> void:
+	if is_instance_valid(opponent_name_label):
+		opponent_name_label.text = "IA - Mestre" if ai_enabled else "Jogador 2"
 
 func set_turn(white_to_move: bool) -> void:
 	if is_instance_valid(turn_label):
