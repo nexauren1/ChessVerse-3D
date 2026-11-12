@@ -556,6 +556,7 @@ func _update_game_status() -> void:
 
 func _restart_game() -> void:
 	game_over = false
+	clock_running = true
 	white_clock = 900.0
 	black_clock = 900.0
 	rules.reset()
