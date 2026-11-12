@@ -12,6 +12,7 @@ var selected_piece: Node3D
 var white_to_move := true
 var rules: ChessRules
 var game_over := false
+var versus_ai := true
 var white_piece_material: StandardMaterial3D
 var silver_piece_material: StandardMaterial3D
 var hud
@@ -33,6 +34,7 @@ func _build_hud() -> void:
 	add_child(hud)
 	hud.restart_requested.connect(_restart_game)
 	hud.resign_requested.connect(_resign_game)
+	hud.mode_changed.connect(_on_mode_changed)
 	hud.set_turn(true)
 
 func _build_environment() -> void:
@@ -401,7 +403,7 @@ func _handle_tap(screen_position: Vector2) -> void:
 	_select_or_move(collider.get_meta("square"))
 
 func _select_or_move(square: Vector2i) -> void:
-	if game_over or not white_to_move:
+	if game_over or (versus_ai and not white_to_move):
 		return
 	if selected_piece == null:
 		_try_select_piece(square)
@@ -445,8 +447,12 @@ func _select_or_move(square: Vector2i) -> void:
 	if game_over:
 		return
 
+	if versus_ai and not white_to_move:
+		await _play_ai_turn()
+
+func _play_ai_turn() -> void:
 	await get_tree().create_timer(0.45).timeout
-	if game_over:
+	if game_over or not versus_ai or rules.white_to_move:
 		return
 	var ai_move := rules.play_ai_move(2)
 	if ai_move.is_empty():
@@ -458,11 +464,17 @@ func _select_or_move(square: Vector2i) -> void:
 	hud.set_turn(white_to_move)
 	_update_game_status()
 
+func _on_mode_changed(ai_enabled: bool) -> void:
+	versus_ai = ai_enabled
+	hud.set_status("Modo contra computador" if versus_ai else "Modo para dois jogadores")
+	if versus_ai and not rules.white_to_move:
+		_play_ai_turn()
+
 func _try_select_piece(square: Vector2i) -> void:
 	if not pieces.has(square):
 		return
 	var candidate: Node3D = pieces[square]
-	if not bool(candidate.get_meta("white")) or not white_to_move:
+	if bool(candidate.get_meta("white")) != white_to_move or (versus_ai and not white_to_move):
 		return
 	selected_square = square
 	selected_piece = candidate
@@ -525,6 +537,7 @@ func _update_game_status() -> void:
 func _restart_game() -> void:
 	game_over = false
 	rules.reset()
+	white_to_move = true
 	hud.set_history(rules.move_history)
 	for piece in pieces.values():
 		if is_instance_valid(piece):
