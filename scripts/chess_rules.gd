@@ -10,6 +10,7 @@ var en_passant := Vector2i(-1,-1)
 var halfmove_clock := 0
 var fullmove_number := 1
 var move_history: Array[Dictionary] = []
+var repetition_counts: Dictionary = {}
 
 func reset() -> void:
 	board.clear()
@@ -18,6 +19,7 @@ func reset() -> void:
 	halfmove_clock = 0
 	fullmove_number = 1
 	move_history.clear()
+	repetition_counts.clear()
 	white_to_move = true
 	var back := ["rook","knight","bishop","queen","king","bishop","knight","rook"]
 	for x in range(8):
@@ -25,6 +27,7 @@ func reset() -> void:
 		board[Vector2i(x,1)] = {"kind":"pawn","white":false}
 		board[Vector2i(x,6)] = {"kind":"pawn","white":true}
 		board[Vector2i(x,7)] = {"kind":back[x],"white":true}
+	repetition_counts[_position_key(board, white_to_move, castling, en_passant)] = 1
 
 func piece_at(square: Vector2i) -> Dictionary:
 	return board.get(square, {})
@@ -53,11 +56,16 @@ func play_move(from_square: Vector2i, to_square: Vector2i, promotion: String = "
 		return false
 	if found.has("promotion"):
 		found.promotion = promotion
+	var moving_piece: Dictionary = board[from_square]
+	var is_capture := board.has(to_square) or bool(found.get("en_passant", false))
 	move_history.append(found.duplicate(true))
 	en_passant = _apply_move(board, found, castling, en_passant)
+	halfmove_clock = 0 if moving_piece.kind == "pawn" or is_capture else halfmove_clock + 1
 	white_to_move = not white_to_move
 	if white_to_move:
 		fullmove_number += 1
+	var key := _position_key(board, white_to_move, castling, en_passant)
+	repetition_counts[key] = int(repetition_counts.get(key, 0)) + 1
 	return true
 
 func is_in_check(for_white: bool) -> bool:
@@ -67,6 +75,9 @@ func game_state() -> String:
 	var moves := all_legal_moves(white_to_move)
 	if moves.is_empty():
 		return "checkmate" if is_in_check(white_to_move) else "stalemate"
+	var key := _position_key(board, white_to_move, castling, en_passant)
+	if halfmove_clock >= 100 or int(repetition_counts.get(key, 0)) >= 3 or _insufficient_material():
+		return "draw"
 	return "check" if is_in_check(white_to_move) else "playing"
 
 func choose_ai_move(depth: int = 2) -> Dictionary:
@@ -91,10 +102,15 @@ func play_ai_move(depth: int = 2) -> Dictionary:
 		return {}
 	if move.has("promotion"):
 		move.promotion = "queen"
+	var moving_piece: Dictionary = board[move.from]
+	var is_capture := board.has(move.to) or bool(move.get("en_passant", false))
 	move_history.append(move.duplicate(true))
 	en_passant = _apply_move(board, move, castling, en_passant)
+	halfmove_clock = 0 if moving_piece.kind == "pawn" or is_capture else halfmove_clock + 1
 	white_to_move = true
 	fullmove_number += 1
+	var key := _position_key(board, white_to_move, castling, en_passant)
+	repetition_counts[key] = int(repetition_counts.get(key, 0)) + 1
 	return move
 
 func _legal_moves_for(position: Dictionary, from: Vector2i, piece: Dictionary, rights: Dictionary, ep: Vector2i) -> Array[Dictionary]:
@@ -309,3 +325,43 @@ func _evaluate(position: Dictionary) -> float:
 		value += center*4.0 if piece.kind!="king" else 0.0
 		score += value if piece.white else -value
 	return score
+
+func _position_key(position: Dictionary, white_turn: bool, rights: Dictionary, ep: Vector2i) -> String:
+	var squares: Array[Vector2i] = []
+	for square in position.keys():
+		squares.append(square)
+	squares.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return a.y * 8 + a.x < b.y * 8 + b.x
+	)
+	var parts: Array[String] = []
+	for square in squares:
+		var piece: Dictionary = position[square]
+		parts.append("%d%d%s%s" % [square.x, square.y, "w" if piece.white else "b", String(piece.kind).left(1)])
+	var castle_key := ""
+	for key in ["K","Q","k","q"]:
+		if rights.get(key,false):
+			castle_key += key
+	return "|".join(PackedStringArray(parts)) + ("|w" if white_turn else "|b") + "|" + castle_key + "|%d,%d" % [ep.x,ep.y]
+
+func _insufficient_material() -> bool:
+	var non_kings: Array[Dictionary] = []
+	for square in board:
+		var piece: Dictionary = board[square]
+		if piece.kind != "king":
+			non_kings.append({"kind":piece.kind,"square":square})
+	if non_kings.is_empty():
+		return true
+	if non_kings.size() == 1 and non_kings[0].kind in ["bishop","knight"]:
+		return true
+	for item in non_kings:
+		if item.kind != "bishop":
+			return false
+	var colour := -1
+	for item in non_kings:
+		var square: Vector2i = item.square
+		var current := (square.x + square.y) % 2
+		if colour == -1:
+			colour = current
+		elif current != colour:
+			return false
+	return true
