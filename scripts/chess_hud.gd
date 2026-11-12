@@ -3,6 +3,8 @@ extends CanvasLayer
 signal restart_requested
 signal resign_requested
 signal mode_changed(versus_ai: bool)
+signal difficulty_changed(depth: int)
+signal time_control_changed(seconds: int)
 
 const GOLD := Color(0.93, 0.68, 0.28)
 const PALE_GOLD := Color(1.0, 0.84, 0.55)
@@ -21,6 +23,8 @@ var mode_button: Button
 var opponent_name_label: Label
 var white_clock_label: Label
 var black_clock_label: Label
+var difficulty_option: OptionButton
+var clock_option: OptionButton
 
 func _ready() -> void:
 	layer = 20
@@ -222,6 +226,25 @@ func _build_popup(root: Control) -> void:
 	popup_body.add_theme_font_size_override("font_size", 17)
 	content.add_child(popup_body)
 
+	difficulty_option = OptionButton.new()
+	difficulty_option.add_item("Fácil — nível 1", 1)
+	difficulty_option.add_item("Normal — nível 2", 2)
+	difficulty_option.add_item("Difícil — nível 3", 3)
+	difficulty_option.select(1)
+	difficulty_option.item_selected.connect(_on_difficulty_selected)
+	content.add_child(difficulty_option)
+	difficulty_option.visible = false
+
+	clock_option = OptionButton.new()
+	clock_option.add_item("5 minutos", 300)
+	clock_option.add_item("10 minutos", 600)
+	clock_option.add_item("15 minutos", 900)
+	clock_option.add_item("30 minutos", 1800)
+	clock_option.select(2)
+	clock_option.item_selected.connect(_on_clock_selected)
+	content.add_child(clock_option)
+	clock_option.visible = false
+
 	mode_button = Button.new()
 	mode_button.text = "Modo: Contra IA"
 	mode_button.custom_minimum_size = Vector2(220, 42)
@@ -289,6 +312,8 @@ func _open_popup(title: String, body: String) -> void:
 	popup_overlay.visible = true
 
 func _open_menu() -> void:
+	difficulty_option.visible = false
+	clock_option.visible = false
 	mode_button.visible = true
 	mode_button.text = "Modo: Contra IA" if versus_ai else "Modo: 2 jogadores"
 	_open_popup("Menu da partida", "ChessVerse 3D\nEscolhe o modo de jogo. A alteração aplica-se à próxima jogada.")
@@ -300,10 +325,14 @@ func _toggle_mode() -> void:
 
 func _open_tips() -> void:
 	mode_button.visible = false
+	difficulty_option.visible = false
+	clock_option.visible = false
 	_open_popup("Dicas de xadrez", "Controla o centro, desenvolve as peças menores, protege o rei e evita deixar peças sem defesa. O motor já verifica movimentos legais, xeque e roque.")
 
 func _open_history() -> void:
 	mode_button.visible = false
+	difficulty_option.visible = false
+	clock_option.visible = false
 	_open_popup("Histórico de jogadas", history_text)
 
 func set_history(moves: Array[Dictionary]) -> void:
@@ -326,7 +355,15 @@ func _square_name(square: Vector2i) -> String:
 
 func _open_settings() -> void:
 	mode_button.visible = false
-	_open_popup("Definições", "Apresentação: Luxo metálico\nIdioma: Português\nModo de ecrã: Horizontal\nAs opções de som, câmara e dificuldade serão adicionadas.")
+	difficulty_option.visible = true
+	clock_option.visible = true
+	_open_popup("Definições", "Dificuldade da IA e duração do relógio. As alterações aplicam-se imediatamente.")
+
+func _on_difficulty_selected(index: int) -> void:
+	difficulty_changed.emit(difficulty_option.get_item_id(index))
+
+func _on_clock_selected(index: int) -> void:
+	time_control_changed.emit(clock_option.get_item_id(index))
 
 func _request_restart() -> void:
 	restart_requested.emit()
