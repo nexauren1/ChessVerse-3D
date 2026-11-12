@@ -1,19 +1,8 @@
 name: Build Android APK
 
-concurrency:
-  group: android-build-${{ github.ref }}
-  cancel-in-progress: true
-
+# APK generation is handled by the single validate-and-build workflow.
+# Keep this workflow available for an intentional manual export.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "project.godot"
-      - "export_presets.cfg"
-      - "scripts/**"
-      - "scenes/**"
-      - "assets/models/**"
-      - ".github/workflows/build-android.yml"
   workflow_dispatch:
 
 permissions:
@@ -36,24 +25,12 @@ jobs:
           unzip -q /tmp/godot-templates.tpz -d /tmp/godot-templates
           cp /tmp/godot-templates/templates/* "$HOME/.local/share/godot/export_templates/4.3.stable/"
 
-      - name: Install required Android SDK packages and configure signing
+      - name: Install Android SDK requirements and configure signing
         run: |
           JAVA_PATH="${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")}"
           SDK_PATH="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/lib/android-sdk}}"
-          command -v sdkmanager
           yes | sdkmanager --sdk_root="$SDK_PATH" --licenses
-          sdkmanager --sdk_root="$SDK_PATH" \
-            "platform-tools" \
-            "build-tools;34.0.0" \
-            "platforms;android-34" \
-            "cmdline-tools;latest" \
-            "cmake;3.10.2.4988404" \
-            "ndk;23.2.8568313"
-          test -x "$JAVA_PATH/bin/java"
-          test -x "$SDK_PATH/platform-tools/adb"
-          test -x "$SDK_PATH/build-tools/34.0.0/apksigner"
-          test -d "$SDK_PATH/platforms/android-34"
-          test -d "$SDK_PATH/ndk/23.2.8568313"
+          sdkmanager --sdk_root="$SDK_PATH" "platform-tools" "build-tools;34.0.0" "platforms;android-34" "cmdline-tools;latest" "cmake;3.10.2.4988404" "ndk;23.2.8568313"
           mkdir -p "$HOME/.config/godot" "$HOME/.android"
           keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
           cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
@@ -65,8 +42,6 @@ jobs:
           export/android/debug_keystore_user = "androiddebugkey"
           export/android/debug_keystore_pass = "android"
           EOF
-          echo "Using Java: $JAVA_PATH"
-          echo "Using Android SDK: $SDK_PATH"
 
       - name: Import project assets
         run: timeout 120s godot --headless --editor --path . --quit
