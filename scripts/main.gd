@@ -436,6 +436,7 @@ func _select_or_move(square: Vector2i) -> void:
 	if not rules.play_move(from,square):
 		return
 	_sync_visual_move(from,square,is_en_passant,castle,promotion)
+	hud.set_history(rules.move_history)
 	selected_piece = null
 	selected_square = Vector2i(-1,-1)
 	white_to_move = rules.white_to_move
@@ -452,6 +453,7 @@ func _select_or_move(square: Vector2i) -> void:
 		_update_game_status()
 		return
 	_sync_visual_move(ai_move.from,ai_move.to,bool(ai_move.get("en_passant",false)),String(ai_move.get("castle","")),String(ai_move.get("promotion","")))
+	hud.set_history(rules.move_history)
 	white_to_move = rules.white_to_move
 	hud.set_turn(white_to_move)
 	_update_game_status()
@@ -523,6 +525,7 @@ func _update_game_status() -> void:
 func _restart_game() -> void:
 	game_over = false
 	rules.reset()
+	hud.set_history(rules.move_history)
 	for piece in pieces.values():
 		if is_instance_valid(piece):
 			piece.queue_free()
