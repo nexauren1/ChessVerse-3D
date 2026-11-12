@@ -466,6 +466,7 @@ func _play_ai_turn() -> void:
 
 func _on_mode_changed(ai_enabled: bool) -> void:
 	versus_ai = ai_enabled
+	hud.set_game_mode(versus_ai)
 	hud.set_status("Modo contra computador" if versus_ai else "Modo para dois jogadores")
 	if versus_ai and not rules.white_to_move:
 		_play_ai_turn()
