@@ -96,20 +96,18 @@ jobs:
           test -x "$SDK_PATH/build-tools/34.0.0/apksigner"
           test -d "$SDK_PATH/platforms/android-34"
           test -d "$SDK_PATH/ndk/23.2.8568313"
-          mkdir -p "$HOME/.config/godot" "$HOME/.android"
+          mkdir -p "$HOME/.android"
           keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
-          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
-          [gd_resource type="EditorSettings" format=3]
-          [resource]
-          export/android/android_sdk_path = "$SDK_PATH"
-          export/android/java_sdk_path = "$JAVA_PATH"
-          export/android/debug_keystore = "$HOME/.android/debug.keystore"
-          export/android/debug_keystore_user = "androiddebugkey"
-          export/android/debug_keystore_pass = "android"
-          EOF
+          # Persist SDK/JDK paths for every later GitHub Actions step.
+          echo "JAVA_HOME=$JAVA_PATH" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$SDK_PATH" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_PATH" >> "$GITHUB_ENV"
+          # Godot 4.3 reads Android debug-signing credentials from these environment variables.
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android" >> "$GITHUB_ENV"
           echo "Using Java: $JAVA_PATH"
           echo "Using Android SDK: $SDK_PATH"
-
       - name: Import assets for Android export
         run: timeout 120s godot --headless --editor --path . --quit
 
